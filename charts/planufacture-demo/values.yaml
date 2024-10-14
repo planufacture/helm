@@ -5,12 +5,13 @@
 replicaCount: 1
 
 image:
-  repository: nginx
+  repository: ghcr.io/planufacture/planufacture-discovery
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
-  tag: ""
+  tag: "0.0.4"
 
-imagePullSecrets: []
+imagePullSecrets:
+  - name: planufacture-credentials
 nameOverride: ""
 fullnameOverride: ""
 
@@ -35,13 +36,13 @@ securityContext:
   capabilities:
     drop:
       - ALL
-  readOnlyRootFilesystem: true
+#  readOnlyRootFilesystem: true
   runAsNonRoot: true
-  runAsUser: 1000
+  runAsUser: 65535
 
 service:
   type: ClusterIP
-  port: 80
+  port: 8761
 
 ingress:
   enabled: false
@@ -73,11 +74,11 @@ resources: {}
 
 livenessProbe:
   httpGet:
-    path: /
+    path: /actuator/health/liveness
     port: http
 readinessProbe:
   httpGet:
-    path: /
+    path: /actuator/health/readiness
     port: http
 
 autoscaling:
