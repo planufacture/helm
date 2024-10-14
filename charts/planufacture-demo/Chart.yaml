@@ -3,6 +3,10 @@ name: planufacture-demo
 description: A Helm chart for Kubernetes
 home: https://charts.planufacture.tech/
 
+maintainers:
+  - name: Noel Keating
+    email: keatingn@users.noreply.github.com
+
 # A chart can be either an 'application' or a 'library' chart.
 #
 # Application charts are a collection of templates that can be packaged into versioned archives
