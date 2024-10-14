@@ -1,0 +1,18 @@
+apiVersion: v1
+entries:
+  planufacture-demo:
+  - apiVersion: v2
+    appVersion: 0.0.2
+    created: "2024-10-14T17:00:11.230558823Z"
+    description: A Helm chart for Kubernetes
+    digest: eda315c1d715e2a943a7d1ee084b27858d15ba25886a298899663cdc9db860d6
+    home: https://charts.planufacture.tech/
+    maintainers:
+    - email: keatingn@users.noreply.github.com
+      name: keatingn
+    name: planufacture-demo
+    type: application
+    urls:
+    - https://github.com/planufacture/helm/releases/download/planufacture-demo-0.1.1/planufacture-demo-0.1.1.tgz
+    version: 0.1.1
+generated: "2024-10-14T17:00:11.230593227Z"
