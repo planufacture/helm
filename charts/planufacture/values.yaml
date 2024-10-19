@@ -2,12 +2,9 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-
-
 microServices:
   discovery:
     image:
-
       tag: 0.0.9
     service:
       port: 8761
@@ -24,10 +21,6 @@ microServices:
 #  configServer:
 #    image:
 #      tag: 0.0.1
-
-
-
-
 
 replicaCount: 1
 
