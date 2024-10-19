@@ -1,0 +1,19 @@
+{{- range $key, $val := .Values.microServices }}
+{{- $context := merge (dict "key" $key) $ }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "planufacture.name" $context }}
+  labels:
+    {{- include "planufacture.labels" $context | nindent 4 }}
+spec:
+  type: {{ .service.type | default $.Values.service.type }}
+  ports:
+    - port: {{ .service.port | default $.Values.service.port  }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "planufacture.selectorLabels" $context | nindent 4 }}
+---
+{{- end }}
