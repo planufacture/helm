@@ -7,6 +7,7 @@
 microServices:
   discovery:
     image:
+
       tag: 0.0.9
     service:
       port: 8761
@@ -29,6 +30,12 @@ microServices:
 
 
 replicaCount: 1
+
+image:
+  repository: nginx
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: ""
 
 imagePullSecrets:
   - name: planufacture-credentials
