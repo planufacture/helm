@@ -1,6 +1,8 @@
 apiVersion: v2
 name: planufacture
 description: A Helm chart for Kubernetes
+maintainers:
+  - name: keatingn
 
 # A chart can be either an 'application' or a 'library' chart.
 #
