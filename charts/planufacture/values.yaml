@@ -2,12 +2,9 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-
-
 microServices:
   discovery:
     image:
-
       tag: 0.0.9
     service:
       port: 8761
@@ -24,10 +21,6 @@ microServices:
 #  configServer:
 #    image:
 #      tag: 0.0.1
-
-
-
-
 
 replicaCount: 1
 
@@ -58,15 +51,15 @@ podAnnotations: {}
 podLabels: {}
 
 podSecurityContext:
-   fsGroup: 65532
+  fsGroup: 65532
 
 securityContext:
-   capabilities:
-     drop:
-     - ALL
+  capabilities:
+    drop:
+      - ALL
   # readOnlyRootFilesystem: true
-   runAsNonRoot: true
-   runAsUser: 65532
+  runAsNonRoot: true
+  runAsUser: 65532
 
 service:
   type: ClusterIP
@@ -77,7 +70,7 @@ ingress:
   className: ""
   annotations: {}
     # kubernetes.io/ingress.class: nginx
-    # kubernetes.io/tls-acme: "true"
+  # kubernetes.io/tls-acme: "true"
   hosts:
     - host: chart-example.local
       paths:
@@ -98,7 +91,7 @@ resources: {}
   #   memory: 128Mi
   # requests:
   #   cpu: 100m
-  #   memory: 128Mi
+#   memory: 128Mi
 
 livenessProbe:
   httpGet:
