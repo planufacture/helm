@@ -2,3 +2,4 @@
 /charts/*/charts
 .idea
 helm.iml
+/values

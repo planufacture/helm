@@ -36,7 +36,7 @@ spec:
         - name: {{ $.Chart.Name }}-{{ $key | kebabcase }}
           securityContext:
             {{- toYaml $.Values.securityContext | nindent 12 }}
-          image: "{{ .image.repository | default (printf "ghcr.io/planufacture/planufacture-%s" $key) }}:{{ .image.tag | default $.Chart.AppVersion }}"
+          image: "{{ .image.repository | default (printf "ghcr.io/planufacture/planufacture-%s" ($key | kebabcase)) }}:{{ .image.tag | default $.Chart.AppVersion }}"
           imagePullPolicy: {{ $.Values.image.pullPolicy }}
           ports:
             - name: http
@@ -52,13 +52,30 @@ spec:
             {{- toYaml $.Values.readinessProbe | nindent 12 }}
           resources:
             {{- toYaml $.Values.resources | nindent 12 }}
-          {{- with $.Values.volumeMounts }}
+          {{- if .configuration }}
+          volumeMounts:
+            - name: configuration
+              mountPath: /home/nonroot/config
+              readOnly: true
+            {{- with .volumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- else }}
+          {{- with .volumeMounts }}
           volumeMounts:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-      {{- with $.Values.volumes }}
+          {{- end }}
+      {{- if .configuration }}
+      volumes:
+        - name: configuration
+          secret:
+            secretName: {{ include "planufacture.fullname" $ }}-configuration
+      {{- else }}
+      {{- with .volumes }}
       volumes:
         {{- toYaml . | nindent 8 }}
+      {{- end }}
       {{- end }}
       {{- with $.Values.nodeSelector }}
       nodeSelector:
