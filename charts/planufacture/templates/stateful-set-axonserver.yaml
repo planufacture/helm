@@ -1,0 +1,115 @@
+{{- if .Values.axonserver.enabled}}
+{{- $context := merge (dict "key" "axonserver") $ }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "planufacture.fullname" $context }}
+  labels:
+    {{- include "planufacture.labels" $context | nindent 4 }}
+spec:
+  revisionHistoryLimit: 3
+  replicas: 1    # or we can even skip this, just want to test the HAP below, otherwise start with 3 lets say
+  selector:
+    matchLabels:
+      {{- include "planufacture.selectorLabels" $context | nindent 6 }}
+  serviceName: axonserver
+  template:
+    metadata:
+      labels:
+        {{- include "planufacture.labels" $context | nindent 8 }}
+        {{- with $.Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      securityContext:
+        runAsUser: 1001
+        runAsNonRoot: true
+        fsGroup: 1001
+    {{- with .Values.axonserver.nodeSelector }}
+      nodeSelector:
+{{ toYaml . | indent 8 }}
+    {{- end }}
+      containers:
+        - name: axonserver
+          image: axoniq/axonserver:2024.1.2-nonroot
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: AXONIQ_LICENSE
+              value: "/axonserver/license/axoniq.license"
+            - name: AXONIQ_AXONSERVER_STANDALONE
+              value: "TRUE"
+          ports:
+            - name: grpc
+              containerPort: 8124
+              protocol: TCP
+            - name: gui
+              containerPort: 8024
+              protocol: TCP
+          volumeMounts:
+            - name: {{ include "planufacture.fullname" . }}-axonserver-data
+              mountPath: /axonserver/data
+            - name: {{ include "planufacture.fullname" . }}-axonserver-events
+              mountPath: /axonserver/events
+            - name: {{ include "planufacture.fullname" . }}-axonserver-log
+              mountPath: /axonserver/log
+            - name: {{ include "planufacture.fullname" . }}-axonserver-config
+              mountPath: /axonserver/config
+              readOnly: true
+            - name: {{ include "planufacture.fullname" . }}-axonserver-system-token
+              mountPath: /axonserver/security
+              readOnly: true
+            - name: {{ include "planufacture.fullname" . }}-axonserver-license
+              mountPath: /axonserver/license
+              readOnly: true
+          readinessProbe:
+            httpGet:
+              path: /actuator/info
+              port: 8024
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 1
+            failureThreshold: 30
+          livenessProbe:
+            httpGet:
+              path: /actuator/info
+              port: 8024
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            failureThreshold: 3
+          resources:
+{{ toYaml .Values.axonserver.resources | indent 12 }}
+      volumes:
+        - name: {{ include "planufacture.fullname" . }}-axonserver-config
+          configMap:
+            name: {{ include "planufacture.fullname" . }}-axonserver-properties
+        - name: {{ include "planufacture.fullname" . }}-axonserver-system-token
+          secret:
+            secretName: {{ include "planufacture.fullname" . }}-axonserver-token
+        - name: {{ include "planufacture.fullname" . }}-axonserver-license
+          secret:
+            secretName: {{ include "planufacture.fullname" . }}-axonserver-license
+  volumeClaimTemplates:
+    - metadata:
+        name: {{ include "planufacture.fullname" . }}-axonserver-events
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: {{ .Values.axonserver.storage.events | default "5Gi" }}
+    - metadata:
+        name: {{ include "planufacture.fullname" . }}-axonserver-log
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: {{ .Values.axonserver.storage.logs | default "1Gi" }}
+    - metadata:
+        name: {{ include "planufacture.fullname" . }}-axonserver-data
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: {{ .Values.axonserver.storage.data | default "1Gi" }}
+
+{{- end }}

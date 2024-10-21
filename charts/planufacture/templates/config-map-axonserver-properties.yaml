@@ -1,0 +1,11 @@
+{{- if .Values.axonserver.enabled}}
+{{- $context := merge (dict "key" "axonserver-properties") $ }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "planufacture.fullname" $context }}
+  labels:
+    {{- include "planufacture.labels" $context | nindent 4 }}
+data:
+  axonserver.properties: ""
+{{- end }}

@@ -1,0 +1,17 @@
+{{- if .Values.axonserver.enabled}}
+{{- $context := merge (dict "key" "axonserver-gui") $ }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: axonserver-gui
+  labels:
+    {{- include "planufacture.labels" $context | nindent 4 }}
+spec:
+  ports:
+    - port: 8024
+      name: gui
+      targetPort: 8024
+  selector:
+    {{- include "planufacture.selectorLabels" (merge (dict "key" "axonserver") $) | nindent 4 }}
+  type: ClusterIP
+{{- end }}
