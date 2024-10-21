@@ -2,6 +2,9 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 ---
+application: {}
+
+
 microServices:
   discovery:
     image:
@@ -24,6 +27,18 @@ microServices:
       tag: 0.0.5
     service:
       port: 9500
+
+mongodb:
+  enabled: false
+  username: admin
+rabbitmq:
+  enabled: false
+axonserver:
+  enabled: false
+  storage:
+    events: 5Gi
+    logs: 1Gi
+    data: 1Gi
 
 replicaCount: 1
 

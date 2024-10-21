@@ -42,8 +42,15 @@ spec:
             - name: http
               containerPort: {{ .service.port | default $.Values.service.port  }}
               protocol: TCP
-          {{- with .env }}
           env:
+            - name: SPRING_PROFILES_ACTIVE
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "planufacture.fullname" $ }}-profile
+                  key: active
+            - name: SPRING_CLOUD_CONFIG_LABEL
+              value: {{ required "A valid .Values.application.environment is required" $.Values.application.environment }}
+            {{- with .env }}
             {{- toYaml . | nindent 12 }}
           {{- end }}
           livenessProbe:
