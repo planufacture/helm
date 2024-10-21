@@ -50,6 +50,13 @@ spec:
                   key: active
             - name: SPRING_CLOUD_CONFIG_LABEL
               value: {{ required "A valid .Values.application.environment is required" $.Values.application.environment }}
+            {{- if .mongo }}
+            - name: SPRING_DATA_MONGODB_URI
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "planufacture.fullname" $context }}
+                  key: mongo-uri
+            {{- end }}
             {{- with .env }}
             {{- toYaml . | nindent 12 }}
           {{- end }}
