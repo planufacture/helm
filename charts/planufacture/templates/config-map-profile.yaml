@@ -1,0 +1,10 @@
+---
+{{- $context := merge (dict "key" "profile") $ }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "planufacture.fullname" $context }}
+  labels:
+    {{- include "planufacture.labels" $context | nindent 4 }}
+data:
+  active: {{ .Values.application.profile | default "local" }}
