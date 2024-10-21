@@ -1,11 +1,11 @@
 # Default values for planufacture.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
-
+---
 microServices:
   discovery:
     image:
-      tag: 0.0.9
+      tag: 0.0.10
     service:
       port: 8761
     env:
@@ -13,14 +13,17 @@ microServices:
         valueFrom:
           fieldRef:
             fieldPath: metadata.name
-  domain:
+  configServer:
     image:
       tag: 0.0.4
     service:
+      port: 8888
+    configuration: true
+  domain:
+    image:
+      tag: 0.0.5
+    service:
       port: 9500
-#  configServer:
-#    image:
-#      tag: 0.0.1
 
 replicaCount: 1
 
