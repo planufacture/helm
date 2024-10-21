@@ -1,0 +1,16 @@
+{{- if .Values.mongo.enabled}}
+{{- $context := merge (dict "key" "mongo") $ }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongo
+  labels:
+    {{- include "planufacture.labels" $context | nindent 4 }}
+spec:
+  clusterIP: None
+  ports:
+    - port: 27017
+      name: mongo
+  selector:
+    {{- include "planufacture.selectorLabels" $context | nindent 4 }}
+  {{- end }}

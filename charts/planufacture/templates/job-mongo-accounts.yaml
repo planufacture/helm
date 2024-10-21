@@ -1,0 +1,85 @@
+{{- $context := merge (dict "key" "mongo") $ }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "{{.Release.Name}}"
+  labels:
+    {{- include "planufacture.labels" . | nindent 4 }}
+  annotations:
+    # This is what defines this resource as a hook. Without this line, the
+    # job is considered part of the release.
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/hook-delete-policy": hook-succeeded
+spec:
+  template:
+    metadata:
+      name: "{{.Release.Name}}"
+      labels:
+        {{- include "planufacture.labels" . | nindent 8 }}
+    spec:
+      securityContext:
+        runAsUser: 999
+        fsGroup: 999
+      restartPolicy: Never
+      initContainers:
+      - name: wait-mongo
+        image: busybox:1.31
+        command: ['sh', '-c', 'until nc -z -v -w30 mongo 27017; do echo "Waiting for mongo..."; sleep 2; done;']
+      containers:
+      - name: post-install-job
+        image: mongo:8.0.1
+        env:
+        - name: MONGO_INITDB_ROOT_USERNAME
+          value: {{ .Values.mongo.username }}
+        - name: MONGO_INITDB_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "planufacture.fullname" $context }}
+              key: mongo-root-password
+        {{- range $key, $val := .Values.microServices }}
+        {{- $context := merge (dict "key" ($key | kebabcase)) $ }}
+        {{- if .mongo }}
+        - name: {{ $context.key | upper | replace "-" "_" }}_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "planufacture.fullname" $context }}
+              key: mongo-password
+        {{- end }}
+        {{- end }}
+        command:
+        - mongosh
+        - --host
+        - mongo
+        - --port
+        - "27017"
+        - --username
+        - $(MONGO_INITDB_ROOT_USERNAME)
+        - --password
+        - $(MONGO_INITDB_ROOT_PASSWORD)
+        - --eval
+        - |-
+          const users = [];
+          {{- range $key, $val := .Values.microServices }}
+          {{- if .mongo }}
+          users.push({
+               user: "{{ $key }}",
+               pwd: "$({{ $key | upper | replace "-" "_" }}_PASSWORD)",
+               roles: [
+                 {
+                   db: "{{ .mongo.db }}",
+                   role: "dbOwner"
+                 }
+               ],
+               customData: {
+                   createdBy: "Helm setup script"
+               }
+           });
+          {{- end }}
+          {{- end }}
+
+          users.forEach(user => db.getSiblingDB("admin").getUser(user.user) || db.getSiblingDB("admin").createUser(user));
+    {{- with .Values.nodeSelector }}
+      nodeSelector:
+{{ toYaml . | indent 8 }}
+    {{- end }}

@@ -1,0 +1,63 @@
+{{- if .Values.mongo.enabled}}
+{{- $context := merge (dict "key" "mongo") $ }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "planufacture.fullname" $context }}
+  labels:
+    {{- include "planufacture.labels" $context | nindent 4 }}
+spec:
+  revisionHistoryLimit: 3
+  replicas: 1    # or we can even skip this, just want to test the HAP below, otherwise start with 3 lets say
+  selector:
+    matchLabels:
+      {{- include "planufacture.selectorLabels" $context | nindent 6 }}
+  serviceName: mongo
+  template:
+    metadata:
+      labels:
+        {{- include "planufacture.labels" $context | nindent 8 }}
+        {{- with $.Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      securityContext:
+        runAsUser: 999
+        runAsNonRoot: true
+        fsGroup: 999
+    {{- with .Values.mongo.nodeSelector }}
+      nodeSelector:
+{{ toYaml . | indent 8 }}
+    {{- end }}
+      containers:
+        - name: mongo
+          image: mongo:8-noble
+          imagePullPolicy: IfNotPresent
+          # command: [ "mongod" ]
+          # args: [ "--auth", "--bind_ip_all" ]
+          env:
+          - name: MONGO_INITDB_ROOT_USERNAME
+            value: {{ .Values.mongo.username }}
+          - name: MONGO_INITDB_ROOT_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: {{ include "planufacture.fullname" $context }}
+                key: mongo-root-password
+          ports:
+          - containerPort: 27017
+            name: mongo
+          volumeMounts:
+          - mountPath: /data/db
+            name: {{ include "planufacture.fullname" $context }}-data
+          resources:
+{{ toYaml .Values.mongo.resources | indent 12 }}
+  volumeClaimTemplates:
+    - metadata:
+        name: {{ include "planufacture.fullname" $context }}-data
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+{{/*        storageClassName: xfs*/}}
+        resources:
+          requests:
+            storage: {{ .Values.mongo.storage | default "25Gi" }}
+{{- end }}
