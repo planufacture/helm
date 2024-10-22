@@ -8,7 +8,7 @@ metadata:
     {{- include "planufacture.labels" $context | nindent 4 }}
 spec:
   {{- if not $.Values.autoscaling.enabled }}
-  replicas: {{ $.replicaCount }}
+  replicas: {{ default .replicaCount $.replicaCount }}
   {{- end }}
   selector:
     matchLabels:
