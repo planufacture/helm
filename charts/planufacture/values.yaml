@@ -4,7 +4,6 @@
 ---
 application: {}
 
-
 microServices:
   discovery:
     image:
@@ -23,12 +22,19 @@ microServices:
       port: 8888
     configuration: true
   domain:
+    replicaCount: 3
     mongo:
       db: domain
     image:
-      tag: 0.0.5
+      tag: 0.0.6
     service:
       port: 9500
+  gateway:
+    replicaCount: 2
+    image:
+      tag: 0.0.1
+    service:
+      port: 9501
 
 mongo:
   enabled: false
@@ -82,8 +88,9 @@ securityContext:
   runAsUser: 65532
 
 service:
+  name: gateway
   type: ClusterIP
-  port: 8080
+  port: 9501
 
 ingress:
   enabled: false
@@ -95,7 +102,7 @@ ingress:
     - host: chart-example.local
       paths:
         - path: /
-          pathType: ImplementationSpecific
+          pathType: Prefix
   tls: []
   #  - secretName: chart-example-tls
   #    hosts:
