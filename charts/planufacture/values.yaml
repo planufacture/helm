@@ -5,16 +5,6 @@
 application: {}
 
 microServices:
-  discovery:
-    image:
-      tag: 0.0.10
-    service:
-      port: 8761
-    env:
-      - name: EUREKA_INSTANCE_HOSTNAME
-        valueFrom:
-          fieldRef:
-            fieldPath: metadata.name
   configServer:
     image:
       tag: 0.0.4
@@ -22,7 +12,7 @@ microServices:
       port: 8888
     configuration: true
   domain:
-    replicaCount: 3
+    replicaCount: 1
     mongo:
       db: domain
     image:
@@ -30,9 +20,9 @@ microServices:
     service:
       port: 9500
   gateway:
-    replicaCount: 2
+    replicaCount: 1
     image:
-      tag: 0.0.1
+      tag: 0.0.2
     service:
       port: 9501
 
