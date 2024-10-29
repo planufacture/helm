@@ -7,7 +7,7 @@ application: {}
 microServices:
   configServer:
     image:
-      tag: 0.0.4
+      tag: 0.0.5
     service:
       port: 8888
     configuration: true
@@ -16,13 +16,13 @@ microServices:
     mongo:
       db: domain
     image:
-      tag: 0.0.6
+      tag: 0.0.8
     service:
       port: 9500
   gateway:
     replicaCount: 1
     image:
-      tag: 0.0.2
+      tag: 0.0.3
     service:
       port: 9501
 
