@@ -8,7 +8,7 @@ microServices:
   uiDemo1:
     image:
       repository: ghcr.io/planufacture/ui-demo1
-      tag: v0.0.7
+      tag: v0.0.8
     service:
       port: 3000
     livenessProbe:
@@ -30,7 +30,7 @@ microServices:
     mongo:
       db: domain
     image:
-      tag: 0.0.29
+      tag: 0.0.32
     service:
       port: 9500
   gateway:
