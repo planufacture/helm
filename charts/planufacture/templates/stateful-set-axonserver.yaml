@@ -38,6 +38,8 @@ spec:
               value: "/axonserver/license/axoniq.license"
             - name: AXONIQ_AXONSERVER_STANDALONE
               value: "TRUE"
+            - name: AXONIQ_AXONSERVER_DEVMODE_ENABLED
+              value: "TRUE"
           ports:
             - name: grpc
               containerPort: 8124
