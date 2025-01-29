@@ -49,14 +49,15 @@ jobs:
           branch: update-chart-version
           base: main
 
-      - name: Auto-merge if checks pass
-        env:
-          GH_TOKEN: ${{ secrets.GH_PAC }}
-        run: |
-          PR_NUMBER=$(gh pr list --json number --jq '.[0].number')
-          if [ ! -z "$PR_NUMBER" ]; then
-            gh pr merge $PR_NUMBER --auto --merge
-          else
-            echo "No PR found to merge"
-            exit 1
-          fi
+# Enable when upgraded to GitHub teams
+#      - name: Auto-merge if checks pass
+#        env:
+#          GH_TOKEN: ${{ secrets.GH_PAC }}
+#        run: |
+#          PR_NUMBER=$(gh pr list --json number --jq '.[0].number')
+#          if [ ! -z "$PR_NUMBER" ]; then
+#            gh pr merge $PR_NUMBER --auto --merge
+#          else
+#            echo "No PR found to merge"
+#            exit 1
+#          fi
