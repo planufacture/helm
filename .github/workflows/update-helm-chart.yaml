@@ -12,6 +12,8 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GH_PAC }}
 
       - name: Install yq
         run: |
@@ -23,30 +25,21 @@ jobs:
           NEW_VERSION: ${{ github.event.client_payload.version }}
           SERVICE_NAME: ${{ github.event.client_payload.service }}
         run: |
+          # Remove leading 'v' if present
+          CLEAN_VERSION="${NEW_VERSION#v}"
+
           # Update the specific microservice version in values.yaml
-          yq -i ".microServices.$SERVICE_NAME.image.tag = \"$NEW_VERSION\"" charts/planufacture/values.yaml
+          yq -i ".microServices.$SERVICE_NAME.image.tag = \"$CLEAN_VERSION\"" charts/planufacture/values.yaml
 
           # Update the chart version (increment patch version)
           CHART_VERSION=$(grep '^version:' charts/planufacture/Chart.yaml | awk '{print $2}')
           NEW_CHART_VERSION=$(echo $CHART_VERSION | awk -F. '{$NF = $NF + 1;} 1' OFS=.)
           sed -i "s/version: .*/version: $NEW_CHART_VERSION/" charts/planufacture/Chart.yaml
 
-      - name: Package Helm Chart
-        run: |
-          helm package charts/planufacture
-
-      - name: Update Helm Repository Index
-        run: |
-          # If index.yaml doesn't exist, create it
-          if [ ! -f index.yaml ]; then
-            helm repo index .
-          else
-            helm repo index . --merge index.yaml
-          fi
-
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v5
         with:
+          token: ${{ secrets.GH_PAC }}
           commit-message: "chore: update ${{ github.event.client_payload.service }} version to ${{ github.event.client_payload.version }}"
           title: "chore: update ${{ github.event.client_payload.service }} version to ${{ github.event.client_payload.version }}"
           body: |
@@ -57,21 +50,13 @@ jobs:
           base: main
 
       - name: Auto-merge if checks pass
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAC }}
         run: |
           PR_NUMBER=$(gh pr list --json number --jq '.[0].number')
-          gh pr merge $PR_NUMBER --auto --merge
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Create Release
-        run: |
-          # Get the new chart version
-          NEW_CHART_VERSION=$(grep '^version:' charts/planufacture/Chart.yaml | awk '{print $2}')
-
-          # Create a new release
-          gh release create "v$NEW_CHART_VERSION" \
-            --title "Release v$NEW_CHART_VERSION" \
-            --notes "Updated ${{ github.event.client_payload.service }} to version ${{ github.event.client_payload.version }}" \
-            *.tgz index.yaml
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          if [ ! -z "$PR_NUMBER" ]; then
+            gh pr merge $PR_NUMBER --auto --merge
+          else
+            echo "No PR found to merge"
+            exit 1
+          fi
