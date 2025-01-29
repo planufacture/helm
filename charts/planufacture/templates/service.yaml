@@ -1,5 +1,6 @@
 {{- range $key, $val := .Values.microServices }}
 {{- $context := merge (dict "key" $key) $ }}
+{{- if .service }}
 apiVersion: v1
 kind: Service
 metadata:
@@ -16,4 +17,5 @@ spec:
   selector:
     {{- include "planufacture.selectorLabels" $context | nindent 4 }}
 ---
+{{- end }}
 {{- end }}

@@ -1,5 +1,6 @@
 {{- range $key, $val := .Values.microServices }}
 {{- $context := merge (dict "key" $key) $ }}
+{{- if .service }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -112,4 +113,5 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
 ---
+{{- end }}
 {{- end }}
