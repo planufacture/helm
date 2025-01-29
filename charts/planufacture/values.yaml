@@ -38,6 +38,9 @@ microServices:
       tag: 0.0.5
     service:
       port: 9501
+  diomacConnector:
+    image:
+      tag: 0.0.2
 mongo:
   enabled: false
   username: admin
