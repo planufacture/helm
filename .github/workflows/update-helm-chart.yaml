@@ -54,4 +54,4 @@ jobs:
             --wait \
             --timeout 10m
         env:
-          NAMESPACE: ${{ secrets.KUBE_NAMESPACE }}
+          NAMESPACE: ${{ env.NAMESPACE }}
