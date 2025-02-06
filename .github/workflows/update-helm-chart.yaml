@@ -39,6 +39,7 @@ jobs:
         run: |
           helm repo add planufacture https://charts.planufacture.tech
           helm repo update
+          kubectl config view
 
       - name: Create values file from secret
         run: |
