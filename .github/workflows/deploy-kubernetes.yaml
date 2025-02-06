@@ -43,13 +43,13 @@ jobs:
       - name: Deploy to Kubernetes
         run: |
           # Load environment-specific values file if it exists
-          ENV_VALUES="$chart/values.${{ github.event.inputs.environment || 'staging' }}.yaml"
+          ENV_VALUES="$chart/values.${{ github.event.inputs.environment || 'dev' }}.yaml"
           VALUES_ARGS=""
           
-          for chart in charts/*/; do
+          for chart in charts/planufacture/; do
             if [ -d "$chart" ]; then
               chart_name=$(basename "$chart")
-              echo "Deploying $chart_name to ${{ github.event.inputs.environment || 'staging' }}"
+              echo "Deploying $chart_name to ${{ github.event.inputs.environment || 'dev' }}"
           
               # Check for environment-specific values
               if [ -f "$ENV_VALUES" ]; then
