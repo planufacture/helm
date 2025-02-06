@@ -1,4 +1,3 @@
----
 name: Deploy to Kubernetes
 
 on:
@@ -17,7 +16,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
-    environment: ${{ github.event.inputs.environment || 'staging' }}  # Default to staging if not specified
+    environment: ${{ github.event.inputs.environment || 'dev' }}
 
     steps:
       - name: Checkout
@@ -31,8 +30,9 @@ jobs:
           version: v3.13.0
 
       - name: Set up kubeconfig
-        uses: azure/k8s-set-context@v3
+        uses: azure/k8s-set-context@v4
         with:
+          method: kubeconfig
           kubeconfig: ${{ secrets.KUBE_CONFIG }}
 
       - name: Add Helm repositories
@@ -40,30 +40,19 @@ jobs:
           helm repo add planufacture https://charts.planufacture.tech
           helm repo update
 
+      - name: Create values file from secret
+        run: |
+          echo "${{ secrets.HELM_VALUES }}" > values.yaml
+
       - name: Deploy to Kubernetes
         run: |
-          # Load environment-specific values file if it exists
-          ENV_VALUES="$chart/values.${{ github.event.inputs.environment || 'dev' }}.yaml"
-          VALUES_ARGS=""
-          
-          for chart in charts/planufacture/; do
-            if [ -d "$chart" ]; then
-              chart_name=$(basename "$chart")
-              echo "Deploying $chart_name to ${{ github.event.inputs.environment || 'dev' }}"
-          
-              # Check for environment-specific values
-              if [ -f "$ENV_VALUES" ]; then
-                VALUES_ARGS="-f $chart/values.yaml -f $ENV_VALUES"
-              else
-                VALUES_ARGS="-f $chart/values.yaml"
-              fi
-          
-              helm upgrade --install "$chart_name" "$chart" \
-                --namespace "${NAMESPACE}" \
-                ${VALUES_ARGS} \
-                --wait \
-                --timeout 10m
-            fi
-          done
+          echo ${NAME} to {${NAMESPACE}
+          echo "Deploying planufacture/planufacture to ${{ github.event.inputs.environment || 'dev' }}"
+          helm upgrade --install ${NAME} planufacture/planufacture \
+            --namespace "${NAMESPACE}" \
+            -f values.yaml \
+            --wait \
+            --timeout 10m
         env:
-          NAMESPACE: ${{ secrets.KUBE_NAMESPACE }}
+          NAMESPACE: ${{ vars.NAMESPACE }}
+          NAME: ${{ vars.NAME }}

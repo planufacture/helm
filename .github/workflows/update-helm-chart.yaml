@@ -1,58 +1,63 @@
-name: Deploy to Kubernetes
+---
+name: Update Helm Chart Version
 
 on:
-  workflow_run:
-    workflows: ["Release Charts"]
-    types:
-      - completed
-  workflow_dispatch:
-    inputs:
-      environment:
-        description: 'Environment to deploy to'
-        type: environment
-        required: true
+  repository_dispatch:
+    types: [update-helm-version]
 
 jobs:
-  deploy:
+  update-chart:
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
-    environment: ${{ github.event.inputs.environment || 'dev' }}
-
+    permissions:
+      contents: write
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          token: ${{ secrets.GH_PAC }}
 
-      - name: Install Helm
-        uses: azure/setup-helm@v4
-        with:
-          version: v3.13.0
-
-      - name: Set up kubeconfig
-        uses: azure/k8s-set-context@v4
-        with:
-          method: kubeconfig
-          kubeconfig: ${{ secrets.KUBE_CONFIG }}
-
-      - name: Add Helm repositories
+      - name: Install yq
         run: |
-          helm repo add planufacture https://charts.planufacture.tech
-          helm repo update
+          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod a+x /usr/local/bin/yq
 
-      - name: Create values file from secret
-        run: |
-          echo "${{ secrets.HELM_VALUES }}" > values.yaml
-
-      - name: Deploy to Kubernetes
-        run: |
-          echo ${NAME} to {${NAMESPACE}
-          echo "Deploying planufacture/planufacture to ${{ github.event.inputs.environment || 'dev' }}"
-          helm upgrade --install ${NAME} planufacture/planufacture \
-            --namespace "${NAMESPACE}" \
-            -f values.yaml \
-            --wait \
-            --timeout 10m
+      - name: Update Chart Version
         env:
-          NAMESPACE: ${{ vars.NAMESPACE }}
-          NAME: ${{ vars.NAME }}
+          NEW_VERSION: ${{ github.event.client_payload.version }}
+          SERVICE_NAME: ${{ github.event.client_payload.service }}
+        run: |
+          # Remove leading 'v' if present
+          CLEAN_VERSION="${NEW_VERSION#v}"
+
+          # Update the specific microservice version in values.yaml
+          yq -i ".microServices.$SERVICE_NAME.image.tag = \"$CLEAN_VERSION\"" charts/planufacture/values.yaml
+
+          # Update the chart version (increment patch version)
+          CHART_VERSION=$(grep '^version:' charts/planufacture/Chart.yaml | awk '{print $2}')
+          NEW_CHART_VERSION=$(echo $CHART_VERSION | awk -F. '{$NF = $NF + 1;} 1' OFS=.)
+          sed -i "s/version: .*/version: $NEW_CHART_VERSION/" charts/planufacture/Chart.yaml
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GH_PAC }}
+          commit-message: "chore: update ${{ github.event.client_payload.service }} version to ${{ github.event.client_payload.version }}"
+          title: "chore: update ${{ github.event.client_payload.service }} version to ${{ github.event.client_payload.version }}"
+          body: |
+            Updates the ${{ github.event.client_payload.service }} microservice to version ${{ github.event.client_payload.version }}.
+
+            This PR was automatically created by a GitHub Action.
+          branch: update-chart-version
+          base: main
+
+# Enable when upgraded to GitHub teams
+#      - name: Auto-merge if checks pass
+#        env:
+#          GH_TOKEN: ${{ secrets.GH_PAC }}
+#        run: |
+#          PR_NUMBER=$(gh pr list --json number --jq '.[0].number')
+#          if [ ! -z "$PR_NUMBER" ]; then
+#            gh pr merge $PR_NUMBER --auto --merge
+#          else
+#            echo "No PR found to merge"
+#            exit 1
+#          fi
