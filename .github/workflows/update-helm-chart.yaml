@@ -50,6 +50,7 @@ jobs:
             if [ -d "$chart" ]; then
               chart_name=$(basename "$chart")
               echo "Deploying $chart_name to ${{ github.event.inputs.environment || 'dev' }}"
+              echo "::add-mask::${{ secrets.KUBE_CONFIG }}"
           
               helm upgrade --install "$chart_name" "$chart" \
                 --namespace "${NAMESPACE}" \
