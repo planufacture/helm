@@ -46,17 +46,12 @@ jobs:
 
       - name: Deploy to Kubernetes
         run: |
-          for chart in charts/planufacture/; do
-            if [ -d "$chart" ]; then
-              chart_name=$(basename "$chart")
-              echo "Deploying $chart_name to ${{ github.event.inputs.environment || 'dev' }}"
-          
-              echo helm upgrade --install "$chart_name" "$chart" \
-                --namespace "${NAMESPACE}" \
-                -f values.yaml \
-                --wait \
-                --timeout 10m
-            fi
-          done
+          echo ${{ secrets.KUBE_NAMESPACE }}
+          echo "Deploying planufacture/planufacture to ${{ github.event.inputs.environment || 'dev' }}"
+          echo helm upgrade --install local-dev planufacture/planufacture \
+            --namespace "${NAMESPACE}" \
+            -f values.yaml \
+            --wait \
+            --timeout 10m
         env:
           NAMESPACE: ${{ secrets.KUBE_NAMESPACE }}
