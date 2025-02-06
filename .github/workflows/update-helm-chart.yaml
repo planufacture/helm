@@ -39,7 +39,6 @@ jobs:
         run: |
           helm repo add planufacture https://charts.planufacture.tech
           helm repo update
-          kubectl config get-contexts
 
       - name: Create values file from secret
         run: |
@@ -47,13 +46,12 @@ jobs:
 
       - name: Deploy to Kubernetes
         run: |
-          helm list
           for chart in charts/planufacture/; do
             if [ -d "$chart" ]; then
               chart_name=$(basename "$chart")
               echo "Deploying $chart_name to ${{ github.event.inputs.environment || 'dev' }}"
           
-              helm upgrade --install "$chart_name" "$chart" \
+              echo helm upgrade --install "$chart_name" "$chart" \
                 --namespace "${NAMESPACE}" \
                 -f values.yaml \
                 --wait \
