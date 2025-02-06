@@ -29,14 +29,10 @@ jobs:
         with:
           version: v3.13.0
 
-      - name: Debug kubeconfig
-        run: |
-          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d
-          echo "---"
-
       - name: Set up kubeconfig
-        uses: azure/k8s-set-context@v3
+        uses: azure/k8s-set-context@v4
         with:
+          method: kubeconfig
           kubeconfig: ${{ secrets.KUBE_CONFIG }}
 
       - name: Add Helm repositories
