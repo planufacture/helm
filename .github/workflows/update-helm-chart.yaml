@@ -46,12 +46,13 @@ jobs:
 
       - name: Deploy to Kubernetes
         run: |
-          echo ${{ vars.NAMESPACE }}
+          echo ${NAME} to {${NAMESPACE}
           echo "Deploying planufacture/planufacture to ${{ github.event.inputs.environment || 'dev' }}"
-          echo helm upgrade --install local-dev planufacture/planufacture \
+          helm upgrade --install ${NAME} planufacture/planufacture \
             --namespace "${NAMESPACE}" \
             -f values.yaml \
             --wait \
             --timeout 10m
         env:
           NAMESPACE: ${{ vars.NAMESPACE }}
+          NAME: ${{ vars.NAME }}
