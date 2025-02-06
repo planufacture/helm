@@ -1,0 +1,69 @@
+---
+name: Deploy to Kubernetes
+
+on:
+  workflow_run:
+    workflows: ["Release Charts"]
+    types:
+      - completed
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        type: environment
+        required: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    environment: ${{ github.event.inputs.environment || 'staging' }}  # Default to staging if not specified
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.13.0
+
+      - name: Set up kubeconfig
+        uses: azure/k8s-set-context@v3
+        with:
+          kubeconfig: ${{ secrets.KUBE_CONFIG }}
+
+      - name: Add Helm repositories
+        run: |
+          helm repo add planufacture https://charts.planufacture.tech
+          helm repo update
+
+      - name: Deploy to Kubernetes
+        run: |
+          # Load environment-specific values file if it exists
+          ENV_VALUES="$chart/values.${{ github.event.inputs.environment || 'staging' }}.yaml"
+          VALUES_ARGS=""
+          
+          for chart in charts/*/; do
+            if [ -d "$chart" ]; then
+              chart_name=$(basename "$chart")
+              echo "Deploying $chart_name to ${{ github.event.inputs.environment || 'staging' }}"
+          
+              # Check for environment-specific values
+              if [ -f "$ENV_VALUES" ]; then
+                VALUES_ARGS="-f $chart/values.yaml -f $ENV_VALUES"
+              else
+                VALUES_ARGS="-f $chart/values.yaml"
+              fi
+          
+              helm upgrade --install "$chart_name" "$chart" \
+                --namespace "${NAMESPACE}" \
+                ${VALUES_ARGS} \
+                --wait \
+                --timeout 10m
+            fi
+          done
+        env:
+          NAMESPACE: ${{ secrets.KUBE_NAMESPACE }}
