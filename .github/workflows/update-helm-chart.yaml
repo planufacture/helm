@@ -37,7 +37,7 @@ jobs:
           sed -i "s/version: .*/version: $NEW_CHART_VERSION/" charts/planufacture/Chart.yaml
 
       - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v5
+        uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ secrets.GH_PAC }}
           commit-message: "chore: update ${{ github.event.client_payload.service }} version to ${{ github.event.client_payload.version }}"
