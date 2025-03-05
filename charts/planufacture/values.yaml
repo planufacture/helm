@@ -29,7 +29,7 @@ microServices:
     mongo:
       db: domain
     image:
-      tag: 0.0.92
+      tag: 0.0.93
     service:
       port: 9500
   gateway:
