@@ -51,12 +51,12 @@ spec:
                     secretKeyRef:
                       name: {{ include "planufacture.fullname" $ }}-diomac
                       key: password
-                - name: DIOMAC_API_CLIENT
+                - name: DIOMAC_OAUTH2_CLIENT
                   valueFrom:
                     secretKeyRef:
                       name: {{ include "planufacture.fullname" $ }}-diomac
                       key: clientId
-                - name: DIOMAC_API_SECRET
+                - name: DIOMAC_OAUTH2_SECRET
                   valueFrom:
                     secretKeyRef:
                       name: {{ include "planufacture.fullname" $ }}-diomac
