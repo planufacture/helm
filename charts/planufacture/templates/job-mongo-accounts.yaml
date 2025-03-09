@@ -63,8 +63,8 @@ spec:
           {{- range $key, $val := .Values.microServices }}
           {{- if .mongo }}
           users.push({
-               user: "{{ $key }}",
-               pwd: "$({{ $key | upper | replace "-" "_" }}_PASSWORD)",
+               user: "{{ .mongo.db }}",
+               pwd: "$({{ .mongo.db | upper | replace "-" "_" }}_PASSWORD)",
                roles: [
                  {
                    db: "{{ .mongo.db }}",

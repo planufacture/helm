@@ -41,6 +41,8 @@ microServices:
   diomacConnector:
     image:
       tag: 0.0.9
+    mongo:
+      db: diomac-connector
 mongo:
   enabled: false
   username: admin

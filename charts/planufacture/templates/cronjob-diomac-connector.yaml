@@ -1,0 +1,86 @@
+{{- $context := merge (dict "key" "mongo") $ }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: "{{.Release.Name}}"
+  labels:
+    {{- include "planufacture.labels" . | nindent 4 }}
+spec:
+  schedule: "30 5-21 * * *"
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          {{- with $.Values.imagePullSecrets }}
+          imagePullSecrets:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          securityContext:
+            runAsUser: 999
+            fsGroup: 999
+          restartPolicy: Never
+          initContainers:
+            - name: wait-mongo
+              image: busybox:1.31
+              command: ['sh', '-c', 'until nc -z -v -w30 mongo 27017; do echo "Waiting for mongo..."; sleep 2; done;']
+          containers:
+            - name: diomac-connector
+              image: "ghcr.io/planufacture/diomac-connector:{{ $.Values.microServices.diomacConnector.image.tag | default $.Chart.AppVersion }}"
+              imagePullPolicy: {{ $.Values.image.pullPolicy }}
+              env:
+                - name: SPRING_PROFILES_ACTIVE
+                  valueFrom:
+                    configMapKeyRef:
+                      name: {{ include "planufacture.fullname" $ }}-profile
+                      key: active
+                - name: SPRING_CLOUD_CONFIG_LABEL
+                  value: {{ required "A valid .Values.application.environment is required" $.Values.application.environment }}
+                - name: SPRING_DATA_MONGODB_URI
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ include "planufacture.fullname" $ }}-diomac-connector
+                      key: mongo-uri
+                - name: DIOMAC_API_USER
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ include "planufacture.fullname" $ }}-diomac
+                      key: user
+                - name: DIOMAC_API_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ include "planufacture.fullname" $ }}-diomac
+                      key: password
+                - name: DIOMAC_API_CLIENT
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ include "planufacture.fullname" $ }}-diomac
+                      key: clientId
+                - name: DIOMAC_API_SECRET
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ include "planufacture.fullname" $ }}-diomac
+                      key: clientSecret
+                {{- with .env }}
+                {{- toYaml . | nindent 16 }}
+                {{- end }}
+              {{- with .volumeMounts }}
+              volumeMounts:
+              {{- toYaml . | nindent 14 }}
+              {{- end }}
+              {{- with .volumes }}
+          volumes:
+          {{- toYaml . | nindent 10 }}
+          {{- end }}
+          {{- with $.Values.nodeSelector }}
+          nodeSelector:
+          {{- toYaml . | nindent 10 }}
+          {{- end }}
+          {{- with $.Values.affinity }}
+          affinity:
+          {{- toYaml . | nindent 10 }}
+          {{- end }}
+          {{- with $.Values.tolerations }}
+          tolerations:
+          {{- toYaml . | nindent 10 }}
+          {{- end }}
