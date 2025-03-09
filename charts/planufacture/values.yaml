@@ -143,6 +143,7 @@ volumeMounts: []
 #   mountPath: "/etc/foo"
 #   readOnly: true
 
+diomac: {}
 nodeSelector: {}
 tolerations: []
 affinity: {}
