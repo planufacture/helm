@@ -6,7 +6,7 @@ metadata:
   labels:
     {{- include "planufacture.labels" . | nindent 4 }}
 spec:
-  schedule: "30 5-21 * * *"
+  schedule: "*/15 5-20 * * *"
   concurrencyPolicy: Forbid
   jobTemplate:
     spec:
