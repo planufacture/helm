@@ -40,7 +40,7 @@ microServices:
       port: 9501
   diomacConnector:
     image:
-      tag: 0.0.11
+      tag: 0.0.12
     mongo:
       db: diomac-connector
 mongo:
