@@ -46,7 +46,7 @@ jobs:
             Updates the ${{ github.event.client_payload.service }} microservice to version ${{ github.event.client_payload.version }}.
 
             This PR was automatically created by a GitHub Action.
-          branch: update-chart-version
+          branch: update-${{ github.event.client_payload.service }}-version
           base: main
 
 # Enable when upgraded to GitHub teams
