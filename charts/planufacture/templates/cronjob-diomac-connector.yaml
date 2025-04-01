@@ -61,6 +61,26 @@ spec:
                     secretKeyRef:
                       name: {{ include "planufacture.fullname" $ }}-diomac
                       key: clientSecret
+                - name: SPRING_RABBITMQ_HOST
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ $.Values.rabbit.deployment }}-default-user
+                      key: host
+                - name: SPRING_RABBITMQ_PORT
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ $.Values.rabbit.deployment }}-default-user
+                      key: port
+                - name: SPRING_RABBITMQ_USERNAME
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ $.Values.rabbit.deployment }}-default-user
+                      key: username
+                - name: SPRING_RABBITMQ_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ $.Values.rabbit.deployment }}-default-user
+                      key: password
                 {{- with .env }}
                 {{- toYaml . | nindent 16 }}
                 {{- end }}
