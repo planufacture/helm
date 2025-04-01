@@ -53,6 +53,7 @@ axonserver:
     events: 5Gi
     logs: 1Gi
     data: 1Gi
+rabbit: {}
 replicaCount: 1
 image:
   repository: nginx
