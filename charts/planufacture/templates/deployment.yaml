@@ -58,6 +58,28 @@ spec:
                   name: {{ include "planufacture.fullname" $context }}
                   key: mongo-uri
             {{- end }}
+            {{- if .rabbit }}
+            - name: SPRING_RABBITMQ_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $.Values.rabbit.deployment }}-default-user
+                  key: host
+            - name: SPRING_RABBITMQ_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $.Values.rabbit.deployment }}-default-user
+                  key: port
+            - name: SPRING_RABBITMQ_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $.Values.rabbit.deployment }}-default-user
+                  key: username
+            - name: SPRING_RABBITMQ_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $.Values.rabbit.deployment }}-default-user
+                  key: password
+            {{- end }}
             {{- with .env }}
             {{- toYaml . | nindent 12 }}
           {{- end }}

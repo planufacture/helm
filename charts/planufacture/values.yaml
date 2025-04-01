@@ -28,6 +28,7 @@ microServices:
     replicaCount: 1
     mongo:
       db: domain
+    rabbit: true
     image:
       tag: 0.0.112
     service:
@@ -46,8 +47,6 @@ microServices:
 mongo:
   enabled: false
   username: admin
-rabbitmq:
-  enabled: false
 axonserver:
   enabled: false
   storage:
@@ -99,7 +98,6 @@ ingress:
     - host: chart-example.local
       paths:
         - path: /
-          pathType: Prefix
   tls: []
   #  - secretName: chart-example-tls
   #    hosts:
