@@ -3,6 +3,18 @@ entries:
   planufacture:
   - apiVersion: v2
     appVersion: v0.0.1
+    created: "2025-06-18T14:02:56.946920848Z"
+    description: A Helm chart for Kubernetes
+    digest: ca5aa15b463d8d52766d0221fd712312d62ddb184340b4b1024b3a38c8214520
+    maintainers:
+    - name: keatingn
+    name: planufacture
+    type: application
+    urls:
+    - https://github.com/planufacture/helm/releases/download/planufacture-0.1.221/planufacture-0.1.221.tgz
+    version: 0.1.221
+  - apiVersion: v2
+    appVersion: v0.0.1
     created: "2025-06-18T07:59:19.493938489Z"
     description: A Helm chart for Kubernetes
     digest: 8227b2c461769dc367829dff86c9441cc31d194b6f871d5c811cee152a138325
@@ -2642,4 +2654,4 @@ entries:
     urls:
     - https://github.com/planufacture/helm/releases/download/planufacture-demo-0.1.1/planufacture-demo-0.1.1.tgz
     version: 0.1.1
-generated: "2025-06-18T07:59:19.49450642Z"
+generated: "2025-06-18T14:02:56.947484789Z"
