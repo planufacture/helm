@@ -1,0 +1,62 @@
+name: Deploy to EKS
+
+on:
+  workflow_run:
+    workflows: ["pages-build-deployment"]
+    types:
+      - completed
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        type: environment
+        required: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    environment: ${{ github.event.inputs.environment || 'dev' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ var.AWS_REGION }}
+          role-session-name: HelmDeploy-${{ github.run_id }}
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.13.0
+
+      - name: Update kubeconfig
+        run: aws eks update-kubeconfig --region ${{ var.AWS_REGION }} --name ${{ var.CLUSTER_NAME }}
+
+      - name: Add Helm repositories
+        run: |
+          helm repo add planufacture https://charts.planufacture.tech
+          helm repo update
+
+      - name: Create values file from secret
+        run: |
+          echo "${{ secrets.HELM_VALUES }}" > values.yaml
+
+      - name: Deploy to Kubernetes
+        run: |
+          echo ${NAME} to ${NAMESPACE}
+          echo "Deploying planufacture/planufacture to ${{ github.event.inputs.environment || 'dev' }}"
+          helm upgrade --install ${NAME} planufacture/planufacture \
+            --namespace "${NAMESPACE}" \
+            -f values.yaml \
+            --wait \
+            --timeout 10m
+        env:
+          NAMESPACE: ${{ vars.NAMESPACE }}
+          NAME: ${{ vars.NAME }}
