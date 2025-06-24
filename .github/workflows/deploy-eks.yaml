@@ -28,7 +28,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ${{ var.AWS_REGION }}
+          aws-region: ${{ vars.AWS_REGION }}
           role-session-name: HelmDeploy-${{ github.run_id }}
 
       - name: Install Helm
