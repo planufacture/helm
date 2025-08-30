@@ -36,7 +36,7 @@ microServices:
   gateway:
     replicaCount: 1
     image:
-      tag: 0.0.7
+      tag: 0.0.8
     service:
       port: 9501
   diomacConnector:
