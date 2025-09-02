@@ -49,11 +49,11 @@ mongo:
   username: admin
   resources:
     limits:
-      cpu: '2'
-      memory: 1Gi
-    requests:
       cpu: '1'
-      memory: 1Gi
+      memory: 512Mi
+    requests:
+      cpu: 200m
+      memory: 512Mi
 axonserver:
   enabled: false
   storage:
@@ -65,7 +65,7 @@ axonserver:
       cpu: '2'
       memory: 1Gi
     requests:
-      cpu: '1'
+      cpu: 200m
       memory: 1Gi
 rabbit: {}
 replicaCount: 1
