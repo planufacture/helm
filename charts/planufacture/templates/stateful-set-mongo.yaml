@@ -45,38 +45,32 @@ spec:
           - mountPath: /keyfile-secret
             name: mongodb-keyfile-secret
             readOnly: true
-        - name: mongo-init
-          image: mongo:8-noble
-          command:
-            - /bin/bash
-            - -c
-            - |
-              until mongosh --host localhost:27017 --username ${MONGO_INITDB_ROOT_USERNAME} --password ${MONGO_INITDB_ROOT_PASSWORD} --authenticationDatabase admin --eval "db.adminCommand('ping')" &>/dev/null; do
-                echo "Waiting for MongoDB to be ready..."
-                sleep 2
-              done
-              echo "MongoDB is ready, initializing replica set..."
-              mongosh --host localhost:27017 --username ${MONGO_INITDB_ROOT_USERNAME} --password ${MONGO_INITDB_ROOT_PASSWORD} --authenticationDatabase admin --eval '
-                rs.status().ok === 0 && rs.initiate({
-                  _id: "rs0",
-                  members: [{ _id: 0, host: "{{ include "planufacture.fullname" $context }}-0.mongo:27017" }]
-                })
-              '
-              echo "Replica set initialization complete"
-          env:
-          - name: MONGO_INITDB_ROOT_USERNAME
-            value: {{ .Values.mongo.username }}
-          - name: MONGO_INITDB_ROOT_PASSWORD
-            valueFrom:
-              secretKeyRef:
-                name: {{ include "planufacture.fullname" $context }}
-                key: mongo-root-password
       containers:
         - name: mongo
           image: mongo:8-noble
           imagePullPolicy: IfNotPresent
           command: [ "mongod" ]
           args: [ "--replSet", "rs0", "--bind_ip_all", "--keyFile", "/data/keyfile/mongodb-keyfile" ]
+          lifecycle:
+            postStart:
+              exec:
+                command:
+                  - /bin/bash
+                  - -c
+                  - |
+                    until mongosh --host localhost:27017 --username ${MONGO_INITDB_ROOT_USERNAME} --password ${MONGO_INITDB_ROOT_PASSWORD} --authenticationDatabase admin --eval "db.adminCommand('ping')" &>/dev/null; do
+                      sleep 2
+                    done
+                    mongosh --host localhost:27017 --username ${MONGO_INITDB_ROOT_USERNAME} --password ${MONGO_INITDB_ROOT_PASSWORD} --authenticationDatabase admin --eval "
+                      try {
+                        rs.status();
+                      } catch(e) {
+                        rs.initiate({
+                          _id: 'rs0',
+                          members: [{ _id: 0, host: '{{ include "planufacture.fullname" $context }}-0.mongo:27017' }]
+                        });
+                      }
+                    "
           env:
           - name: MONGO_INITDB_ROOT_USERNAME
             value: {{ .Values.mongo.username }}
