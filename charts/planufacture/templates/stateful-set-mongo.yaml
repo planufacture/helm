@@ -67,7 +67,7 @@ spec:
                       } catch(e) {
                         rs.initiate({
                           _id: 'rs0',
-                          members: [{ _id: 0, host: '{{ include "planufacture.fullname" $context }}-0.mongo:27017' }]
+                          members: [{ _id: 0, host: '{{ include "planufacture.fullname" $context }}-0:27017' }]
                         });
                       }
                     "
@@ -87,6 +87,7 @@ spec:
             name: {{ include "planufacture.fullname" $context }}-data
           - mountPath: /data/keyfile
             name: mongodb-keyfile
+            readOnly: true
           resources:
 {{ toYaml .Values.mongo.resources | indent 12 }}
       volumes:
@@ -95,9 +96,6 @@ spec:
         - name: mongodb-keyfile-secret
           secret:
             secretName: {{ include "planufacture.fullname" $context }}
-            items:
-            - key: mongodb-keyfile
-              path: mongodb-keyfile
             defaultMode: 0400
   volumeClaimTemplates:
     - metadata:
