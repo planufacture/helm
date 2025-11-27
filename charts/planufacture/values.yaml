@@ -7,7 +7,7 @@ microServices:
   ui:
     image:
       repository: ghcr.io/planufacture/ui
-      tag: 0.0.183
+      tag: 0.0.187
     service:
       port: 3000
     livenessProbe:
@@ -41,7 +41,7 @@ microServices:
       port: 9501
   diomacConnector:
     image:
-      tag: 0.0.72
+      tag: 0.0.73
     mongo:
       db: diomac-connector
 mongo:
