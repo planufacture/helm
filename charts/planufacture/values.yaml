@@ -30,7 +30,7 @@ microServices:
       db: domain
     rabbit: true
     image:
-      tag: 0.0.335
+      tag: 0.0.336
     service:
       port: 9500
   gateway:
