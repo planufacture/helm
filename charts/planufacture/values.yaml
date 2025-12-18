@@ -20,7 +20,7 @@ microServices:
         port: http
   configServer:
     image:
-      tag: 0.0.6
+      tag: 0.0.9
     service:
       port: 8888
     configuration: true
