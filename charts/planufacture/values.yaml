@@ -20,7 +20,7 @@ microServices:
         port: http
   configServer:
     image:
-      tag: 0.0.9
+      tag: 0.0.11
     service:
       port: 8888
     configuration: true
@@ -30,7 +30,7 @@ microServices:
       db: domain
     rabbit: true
     image:
-      tag: 0.0.359
+      tag: 0.0.360
     service:
       port: 9500
   gateway:
