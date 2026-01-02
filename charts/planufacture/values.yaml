@@ -30,18 +30,18 @@ microServices:
       db: domain
     rabbit: true
     image:
-      tag: 0.0.361
+      tag: 0.0.362
     service:
       port: 9500
   gateway:
     replicaCount: 1
     image:
-      tag: 0.0.9
+      tag: 0.0.11
     service:
       port: 9501
   diomacConnector:
     image:
-      tag: 0.0.88
+      tag: 0.0.90
     mongo:
       db: diomac-connector
 mongo:
