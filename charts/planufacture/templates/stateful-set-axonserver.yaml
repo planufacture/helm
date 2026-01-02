@@ -33,7 +33,7 @@ spec:
     {{- end }}
       containers:
         - name: axonserver
-          image: axoniq/axonserver:2024.2.10-nonroot
+          image: axoniq/axonserver:2025.2.1-nonroot
           imagePullPolicy: IfNotPresent
           env:
             - name: AXONIQ_LICENSE
