@@ -29,6 +29,11 @@ spec:
       containers:
       - name: post-install-job
         image: mongo:8.0.1
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - ALL
         env:
         - name: MONGO_INITDB_ROOT_USERNAME
           value: {{ .Values.mongo.username }}
