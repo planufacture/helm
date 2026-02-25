@@ -78,8 +78,8 @@ mongo:
 axonserver:
   enabled: false
   storage:
-    events: 5Gi
-    logs: 1Gi
+    events: 7Gi
+    logs: 2Gi
     data: 1Gi
   resources:
     limits:
