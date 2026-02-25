@@ -28,6 +28,8 @@ microServices:
     replicaCount: 1
     mongo:
       db: domain
+      # existingSecret: atlas-domain-credentials
+      # existingSecretKey: mongo-uri
     rabbit: true
     image:
       tag: 0.0.415
@@ -51,9 +53,15 @@ microServices:
       tag: 0.0.108
     mongo:
       db: diomac-connector
+      # existingSecret: atlas-diomac-connector-credentials
+      # existingSecretKey: mongo-uri
 mongo:
   enabled: false
   username: admin
+  image:
+    repository: mongo
+    tag: 8-noble
+  storageClassName: gp3-xfs-backup
   resources:
     limits:
       cpu: '1'
