@@ -1,4 +1,3 @@
-{{- $context := merge (dict "key" "mongo") $ }}
 apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -21,10 +20,12 @@ spec:
             runAsUser: 999
             fsGroup: 999
           restartPolicy: Never
+          {{- if $.Values.mongo.enabled }}
           initContainers:
             - name: wait-mongo
               image: busybox:1.31
               command: ['sh', '-c', 'until nc -z -v -w30 mongo 27017; do echo "Waiting for mongo..."; sleep 2; done;']
+          {{- end }}
           containers:
             - name: diomac-connector
               image: "ghcr.io/planufacture/diomac-connector:{{ $.Values.microServices.diomacConnector.image.tag | default $.Chart.AppVersion }}"
@@ -45,8 +46,15 @@ spec:
                 - name: SPRING_DATA_MONGODB_URI
                   valueFrom:
                     secretKeyRef:
+                      {{- if $.Values.microServices.diomacConnector.mongo.existingSecret }}
+                      name: {{ $.Values.microServices.diomacConnector.mongo.existingSecret }}
+                      key: {{ $.Values.microServices.diomacConnector.mongo.existingSecretKey | default "mongo-uri" }}
+                      {{- else if $.Values.mongo.enabled }}
                       name: {{ include "planufacture.fullname" $ }}-diomac-connector
                       key: mongo-uri
+                      {{- else }}
+                      {{ required "microServices.diomacConnector.mongo.existingSecret is required when mongo.enabled is false" $.Values.microServices.diomacConnector.mongo.existingSecret }}
+                      {{- end }}
                 - name: DIOMAC_API_USER
                   valueFrom:
                     secretKeyRef:

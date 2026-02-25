@@ -1,3 +1,4 @@
+{{- if .Values.mongo.enabled }}
 {{- $context := merge (dict "key" "mongo") $ }}
 apiVersion: batch/v1
 kind: Job
@@ -28,7 +29,7 @@ spec:
         command: ['sh', '-c', 'until nc -z -v -w30 mongo 27017; do echo "Waiting for mongo..."; sleep 2; done;']
       containers:
       - name: post-install-job
-        image: mongo:8.0.1
+        image: "{{ .Values.mongo.image.repository }}:{{ .Values.mongo.image.tag }}"
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
@@ -88,3 +89,4 @@ spec:
       nodeSelector:
 {{ toYaml . | indent 8 }}
     {{- end }}
+{{- end }}
