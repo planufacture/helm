@@ -55,16 +55,6 @@ spec:
                       {{- else }}
                       {{ required "microServices.diomacConnector.mongo.existingSecret is required when mongo.enabled is false" $.Values.microServices.diomacConnector.mongo.existingSecret }}
                       {{- end }}
-                - name: DIOMAC_API_USER
-                  valueFrom:
-                    secretKeyRef:
-                      name: {{ include "planufacture.fullname" $ }}-diomac
-                      key: user
-                - name: DIOMAC_API_PASSWORD
-                  valueFrom:
-                    secretKeyRef:
-                      name: {{ include "planufacture.fullname" $ }}-diomac
-                      key: password
                 - name: DIOMAC_API_KEY
                   valueFrom:
                     secretKeyRef:
