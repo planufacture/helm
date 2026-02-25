@@ -51,6 +51,11 @@ spec:
         - name: mongo
           image: mongo:8-noble
           imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
           command: [ "mongod" ]
           args: [ "--replSet", "rs0", "--bind_ip_all", "--keyFile", "/data/keyfile/mongodb-keyfile" ]
           lifecycle:

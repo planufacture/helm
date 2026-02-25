@@ -35,6 +35,11 @@ spec:
         - name: axonserver
           image: axoniq/axonserver:2025.2.1-nonroot
           imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
           env:
             - name: AXONIQ_LICENSE
               value: "/axonserver/license/axoniq.license"

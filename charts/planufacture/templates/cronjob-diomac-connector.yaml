@@ -29,6 +29,11 @@ spec:
             - name: diomac-connector
               image: "ghcr.io/planufacture/diomac-connector:{{ $.Values.microServices.diomacConnector.image.tag | default $.Chart.AppVersion }}"
               imagePullPolicy: {{ $.Values.image.pullPolicy }}
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop:
+                    - ALL
               env:
                 - name: SPRING_PROFILES_ACTIVE
                   valueFrom:

@@ -94,7 +94,7 @@ spec:
             {{- toYaml $.Values.readinessProbe | nindent 12 }}
             {{- end }}
           resources:
-            {{- toYaml $.Values.resources | nindent 12 }}
+            {{- toYaml (default $.Values.resources .resources) | nindent 12 }}
           {{- if .configuration }}
           volumeMounts:
             - name: configuration
