@@ -1,0 +1,25 @@
+{{- if .Values.metrics.enabled }}
+{{- range $key, $val := .Values.microServices }}
+{{- $context := merge (dict "key" $key) $ }}
+{{- if and .service .metrics }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "planufacture.fullname" $context }}
+  labels:
+    {{- include "planufacture.labels" $context | nindent 4 }}
+    {{- with $.Values.metrics.serviceMonitor.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "planufacture.selectorLabels" $context | nindent 6 }}
+  endpoints:
+    - port: http
+      path: {{ .metrics.path | default $.Values.metrics.serviceMonitor.path }}
+      interval: {{ .metrics.interval | default $.Values.metrics.serviceMonitor.interval }}
+---
+{{- end }}
+{{- end }}
+{{- end }}

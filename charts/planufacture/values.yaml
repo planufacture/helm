@@ -24,6 +24,8 @@ microServices:
     service:
       port: 8888
     configuration: true
+    metrics:
+      enabled: true
   domain:
     replicaCount: 1
     mongo:
@@ -35,6 +37,8 @@ microServices:
       tag: 0.0.415
     service:
       port: 9500
+    metrics:
+      enabled: true
     resources:
       requests:
         cpu: '1'
@@ -48,6 +52,8 @@ microServices:
       tag: 0.0.11
     service:
       port: 9501
+    metrics:
+      enabled: true
   diomacConnector:
     image:
       tag: 0.0.108
@@ -172,6 +178,13 @@ volumeMounts: []
 #   readOnly: true
 
 diomac: {}
+metrics:
+  enabled: false
+  serviceMonitor:
+    path: /actuator/prometheus
+    interval: 30s
+    # Extra labels to add to ServiceMonitor resources (e.g. release: kube-prometheus-stack)
+    labels: {}
 nodeSelector: {}
 tolerations: []
 affinity: {}
