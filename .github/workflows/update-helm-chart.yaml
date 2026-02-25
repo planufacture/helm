@@ -31,11 +31,6 @@ jobs:
           # Update the specific microservice version in values.yaml
           yq -i ".microServices.$SERVICE_NAME.image.tag = \"$CLEAN_VERSION\"" charts/planufacture/values.yaml
 
-          # Update the chart version (increment patch version)
-          CHART_VERSION=$(grep '^version:' charts/planufacture/Chart.yaml | awk '{print $2}')
-          NEW_CHART_VERSION=$(echo $CHART_VERSION | awk -F. '{$NF = $NF + 1;} 1' OFS=.)
-          sed -i "s/version: .*/version: $NEW_CHART_VERSION/" charts/planufacture/Chart.yaml
-
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v8
         with:

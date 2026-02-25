@@ -46,6 +46,15 @@ jobs:
           GPG_KEYRING_BASE64: "${{ secrets.GPG_KEYRING_BASE64 }}"
           GPG_PASSPHRASE: "${{ secrets.GPG_PASSPHRASE }}"
 
+      - name: Auto-bump chart version
+        run: |
+          CHART_VERSION=$(grep '^version:' charts/planufacture/Chart.yaml | awk '{print $2}')
+          NEW_CHART_VERSION=$(echo $CHART_VERSION | awk -F. '{$NF = $NF + 1;} 1' OFS=.)
+          sed -i "s/version: .*/version: $NEW_CHART_VERSION/" charts/planufacture/Chart.yaml
+          git add charts/planufacture/Chart.yaml
+          git commit -m "chore: bump chart version to $NEW_CHART_VERSION"
+          git push
+
       - name: Add dependency chart repos
         run: |
           helm repo add bitnami https://charts.bitnami.com/bitnami
