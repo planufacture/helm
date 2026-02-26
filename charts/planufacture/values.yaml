@@ -89,6 +89,7 @@ axonserver:
     events: 5Gi
     logs: 1Gi
     data: 1Gi
+  properties: ""
   resources:
     limits:
       cpu: '1'
