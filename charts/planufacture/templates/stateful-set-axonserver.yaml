@@ -72,19 +72,23 @@ spec:
             - name: {{ include "planufacture.fullname" . }}-axonserver-license
               mountPath: /axonserver/license
               readOnly: true
+          startupProbe:
+            httpGet:
+              path: /actuator/info
+              port: 8024
+            failureThreshold: 30
+            periodSeconds: 10
           readinessProbe:
             httpGet:
               path: /actuator/info
               port: 8024
-            initialDelaySeconds: 5
             periodSeconds: 5
             timeoutSeconds: 1
-            failureThreshold: 30
+            failureThreshold: 3
           livenessProbe:
             httpGet:
               path: /actuator/info
               port: 8024
-            initialDelaySeconds: 5
             periodSeconds: 10
             successThreshold: 1
             failureThreshold: 3
