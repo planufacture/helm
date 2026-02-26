@@ -5,8 +5,8 @@ metadata:
   labels:
     {{- include "planufacture.labels" . | nindent 4 }}
 spec:
-  schedule: "*/5 5-20 * * *"
-  timeZone: "Europe/Dublin"
+  schedule: {{ $.Values.microServices.diomacConnector.schedule | quote }}
+  timeZone: {{ $.Values.microServices.diomacConnector.timeZone | quote }}
   concurrencyPolicy: Forbid
   jobTemplate:
     spec:
