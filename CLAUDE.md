@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-Single Helm chart (`charts/planufacture/`) deploying a microservices-based Kubernetes application. The chart manages multiple microservices (UI, domain, gateway, configServer, diomacConnector), MongoDB and AxonServer StatefulSets, secrets, ingress, and CronJobs.
+Single Helm chart (`charts/planufacture/`) deploying a microservices-based Kubernetes application. The chart manages multiple microservices (UI, domain, gateway, configServer, diomacConnector), optional MongoDB and AxonServer StatefulSets, secrets, ingress, and CronJobs.
 
 ## Commands
 
@@ -37,7 +37,7 @@ There is no Makefile or package.json. All CI automation is in GitHub Actions wor
 ## Architecture
 
 ### Multi-Service Template Pattern
-The core design pattern is a **single deployment template** (`templates/deployment.yaml`) that loops over `values.microServices` to generate one Deployment per service. The same pattern applies to `service.yaml` and `secret-mongo-micro-services.yaml`. Each microservice entry in values can declare `.service`, `.mongo`, `.rabbit`, `.axon` flags to conditionally attach environment variables and dependencies.
+The core design pattern is a **single deployment template** (`templates/deployment.yaml`) that loops over `values.microServices` to generate one Deployment per service. The same pattern applies to `service.yaml` and `secret-mongo-micro-services.yaml`. Each microservice entry in values can declare `.service`, `.mongo`, `.rabbit`, `.axon` flags to conditionally attach environment variables and dependencies. Per-service `resources` can be set with a fallback to the global `resources` default.
 
 ### Context Merging
 Templates use a context-merging pattern to pass the current microservice key into shared helpers:
@@ -48,36 +48,44 @@ Templates use a context-merging pattern to pass the current microservice key int
 This allows `_helpers.tpl` functions to append the service key as a suffix for unique resource naming.
 
 ### Helm Hooks
-- **pre-install/pre-upgrade**: MongoDB root secret creation
-- **post-install/post-upgrade**: Job that creates MongoDB user accounts per microservice
+- **pre-install/pre-upgrade**: MongoDB root secret and per-microservice secrets (only when `mongo.enabled: true`)
+- **post-install/post-upgrade**: Job that creates MongoDB user accounts per microservice (only when `mongo.enabled: true`)
 - **test**: Connection test to the UI service
 
-### StatefulSets
-- **MongoDB 8**: Replica set with keyfile auth, `gp3-xfs-backup` storage class, init container for keyfile permissions
-- **AxonServer**: Event sourcing server with separate PVCs for data, events, and logs
+### MongoDB (Optional)
+Controlled by `mongo.enabled`. When enabled, deploys a MongoDB 8 replica set StatefulSet with keyfile auth, configurable storage class (`mongo.storageClassName`, default `gp3-xfs-backup`), liveness/readiness probes, and auto-creates per-microservice database users. Image is parameterized via `mongo.image.repository`/`mongo.image.tag`.
+
+When disabled (e.g. using MongoDB Atlas), each microservice with `.mongo` must provide `.mongo.existingSecret` and `.mongo.existingSecretKey` pointing to a pre-created Kubernetes secret containing the connection URI. The chart will fail with a clear error if `existingSecret` is missing when `mongo.enabled: false`.
+
+### AxonServer
+Event sourcing server with separate PVCs for data, events, and logs. Controlled by `axonserver.enabled`. **Note**: StatefulSet `volumeClaimTemplates` are immutable — storage sizes cannot be changed via `helm upgrade`. Resize existing PVCs with `kubectl patch pvc` instead.
 
 ### CronJobs
-- **Diomac Connector**: Scheduled every 5 minutes within a time window (5-20 hours, Europe/Dublin)
+- **Diomac Connector**: Schedule and timezone are configurable via `microServices.diomacConnector.schedule` and `.timeZone`. The `wait-mongo` init container is only included when `mongo.enabled: true`.
+
+### Monitoring
+ServiceMonitor resources (Prometheus Operator CRD) can be created per microservice by setting `metrics.enabled: true`. Each service opts in via `metrics.enabled: true` in its values block. Default scrape path is `/actuator/prometheus` at 30s intervals. Extra labels for Prometheus discovery can be set via `metrics.serviceMonitor.labels`.
 
 ### Environment-Specific Values
-- `values/values-dev.yaml` and `values/values-staging.yaml` provide overrides per environment
+- `values/` directory is gitignored — environment values are local only
 - Production values are stored as a GitHub secret (`HELM_VALUES`)
+- 5 GitHub environments: dearboy, demo, dev, github-pages, staging
 
 ## CI/CD Workflows
 
-- **`lint-test.yaml`**: Runs `ct lint` on PRs
-- **`release.yaml`**: Packages and releases chart on pushes to `main` using chart-releaser
-- **`update-helm-chart.yaml`**: Triggered by `repository_dispatch` from other repos when a microservice publishes a new version. Uses `yq` to update the image tag in `values.yaml`, auto-increments the chart patch version, and creates a PR
+- **`lint-test.yaml`**: Runs `ct lint --check-version-increment=false` on PRs (version bumping is handled at release time)
+- **`release.yaml`**: Auto-bumps chart patch version, then packages and releases chart on pushes to `main` using chart-releaser
+- **`update-helm-chart.yaml`**: Triggered by `repository_dispatch` from other repos when a microservice publishes a new version. Uses `yq` to update the image tag in `values.yaml` and updates `appVersion` when the UI service is released. Creates a PR.
 - **`deploy-eks.yaml`**: Deploys to AWS EKS via `helm upgrade --install`
 
 ## Versioning
 
-Chart version (currently `0.1.x`) auto-increments its patch number on each microservice update. Individual microservice image tags are in `values.yaml` under `microServices.<name>.image.tag`. The `appVersion` in Chart.yaml is fixed at `v0.0.1` and not actively tracked.
+Chart version (`0.1.x`) auto-increments its patch number at release time in `release.yaml`. Individual microservice image tags are in `values.yaml` under `microServices.<name>.image.tag`. The `appVersion` in Chart.yaml tracks the UI version and is auto-updated when the UI service is released.
 
 ## Conventions
 
 - All container images are in `ghcr.io/planufacture/`
-- Security context: non-root user (UID 65532)
+- Security context: non-root user (UID 65532) with `capabilities.drop: [ALL]` and `allowPrivilegeEscalation: false` on all containers
 - Image pull secret: `planufacture-credentials`
 - Spring Cloud Config: services use `SPRING_PROFILES_ACTIVE` and `SPRING_CLOUD_CONFIG_LABEL` for profile-based configuration
 - RabbitMQ virtual host and user are set to the release namespace
