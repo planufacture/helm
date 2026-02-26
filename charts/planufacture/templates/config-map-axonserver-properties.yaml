@@ -7,5 +7,6 @@ metadata:
   labels:
     {{- include "planufacture.labels" $context | nindent 4 }}
 data:
-  axonserver.properties: ""
+  axonserver.properties: |
+    {{- .Values.axonserver.properties | nindent 4 }}
 {{- end }}
