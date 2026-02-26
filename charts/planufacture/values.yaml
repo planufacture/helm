@@ -10,6 +10,12 @@ microServices:
       tag: 0.0.248
     service:
       port: 3000
+    startupProbe:
+      httpGet:
+        path: /
+        port: http
+      failureThreshold: 10
+      periodSeconds: 5
     livenessProbe:
       httpGet:
         path: /
@@ -152,6 +158,12 @@ resources: {}
 #   cpu: 100m
 #   memory: 128Mi
 
+startupProbe:
+  httpGet:
+    path: /actuator/health
+    port: http
+  failureThreshold: 30
+  periodSeconds: 10
 livenessProbe:
   httpGet:
     path: /actuator/health/liveness
