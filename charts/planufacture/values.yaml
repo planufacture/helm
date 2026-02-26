@@ -55,6 +55,8 @@ microServices:
     metrics:
       enabled: true
   diomacConnector:
+    schedule: "*/5 5-20 * * *"
+    timeZone: "Europe/Dublin"
     image:
       tag: 0.0.108
     mongo:
