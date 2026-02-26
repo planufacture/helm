@@ -88,6 +88,12 @@ spec:
             {{- with .env }}
             {{- toYaml . | nindent 12 }}
           {{- end }}
+          startupProbe:
+            {{- if .startupProbe }}
+            {{- toYaml  .startupProbe | nindent 12 }}
+            {{- else }}
+            {{- toYaml  $.Values.startupProbe | nindent 12 }}
+            {{- end }}
           livenessProbe:
             {{- if .livenessProbe }}
             {{- toYaml  .livenessProbe | nindent 12 }}
