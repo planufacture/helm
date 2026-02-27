@@ -47,7 +47,7 @@ microServices:
       enabled: true
     resources:
       requests:
-        cpu: '1'
+        cpu: 200m
         memory: 1Gi
       limits:
         cpu: '1'
@@ -81,7 +81,7 @@ mongo:
       cpu: '1'
       memory: 1Gi
     requests:
-      cpu: '1'
+      cpu: 200m
       memory: 1Gi
 axonserver:
   enabled: false
@@ -95,7 +95,7 @@ axonserver:
       cpu: '1'
       memory: 1Gi
     requests:
-      cpu: '1'
+      cpu: 200m
       memory: 1Gi
 rabbit: {}
 replicaCount: 1
