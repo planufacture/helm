@@ -55,7 +55,7 @@ microServices:
   gateway:
     replicaCount: 1
     image:
-      tag: 0.0.11
+      tag: 0.0.13
     service:
       port: 9501
     metrics:
