@@ -33,7 +33,7 @@ spec:
     {{- end }}
       containers:
         - name: axonserver
-          image: axoniq/axonserver:2025.2.1-nonroot
+          image: "{{ .Values.axonserver.image.repository }}:{{ .Values.axonserver.image.tag }}"
           imagePullPolicy: IfNotPresent
           securityContext:
             allowPrivilegeEscalation: false

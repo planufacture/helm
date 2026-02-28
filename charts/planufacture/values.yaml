@@ -69,11 +69,15 @@ microServices:
       db: diomac-connector
       # existingSecret: atlas-diomac-connector-credentials
       # existingSecretKey: mongo-uri
+busybox:
+  image:
+    repository: 503561419401.dkr.ecr.eu-west-1.amazonaws.com/docker-hub/library/busybox
+    tag: "1.31"
 mongo:
   enabled: false
   username: admin
   image:
-    repository: mongo
+    repository: 503561419401.dkr.ecr.eu-west-1.amazonaws.com/docker-hub/library/mongo
     tag: 8-noble
   storageClassName: gp3-xfs-backup
   resources:
@@ -85,6 +89,9 @@ mongo:
       memory: 1Gi
 axonserver:
   enabled: false
+  image:
+    repository: 503561419401.dkr.ecr.eu-west-1.amazonaws.com/docker-hub/axoniq/axonserver
+    tag: 2025.2.1-nonroot
   storage:
     events: 5Gi
     logs: 1Gi

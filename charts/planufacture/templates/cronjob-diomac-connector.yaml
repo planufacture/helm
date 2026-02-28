@@ -23,7 +23,7 @@ spec:
           {{- if $.Values.mongo.enabled }}
           initContainers:
             - name: wait-mongo
-              image: busybox:1.31
+              image: "{{ $.Values.busybox.image.repository }}:{{ $.Values.busybox.image.tag }}"
               command: ['sh', '-c', 'until nc -z -v -w30 mongo 27017; do echo "Waiting for mongo..."; sleep 2; done;']
           {{- end }}
           containers:
