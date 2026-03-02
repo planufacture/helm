@@ -113,8 +113,8 @@ redis:
       allowInsecureImages: true
   image:
     registry: 503561419401.dkr.ecr.eu-west-1.amazonaws.com
-    repository: docker-hub/bitnami/redis
-    tag: 7.4.3-debian-12-r4
+    repository: docker-hub/library/redis
+    tag: 7.4-alpine
   auth:
     enabled: true
   master:
