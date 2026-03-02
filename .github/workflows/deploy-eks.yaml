@@ -52,13 +52,26 @@ jobs:
         run: |
           echo "${{ secrets.HELM_VALUES }}" > values.yaml
 
+      - name: Fetch existing Redis password
+        run: |
+          REDIS_PASSWORD=$(kubectl get secret --namespace "${NAMESPACE}" "${NAME}-redis" -o jsonpath="{.data.redis-password}" 2>/dev/null | base64 -d) || true
+          echo "REDIS_PASSWORD=${REDIS_PASSWORD}" >> $GITHUB_ENV
+        env:
+          NAMESPACE: ${{ vars.NAMESPACE }}
+          NAME: ${{ vars.NAME }}
+
       - name: Deploy to Kubernetes
         run: |
           echo ${NAME} to ${NAMESPACE}
           echo "Deploying planufacture/planufacture to ${{ github.event.inputs.environment || 'dev' }}"
+          REDIS_SET=""
+          if [ -n "${REDIS_PASSWORD}" ]; then
+            REDIS_SET="--set redis.auth.password=${REDIS_PASSWORD}"
+          fi
           helm upgrade --install ${NAME} planufacture/planufacture \
             --namespace "${NAMESPACE}" \
             -f values.yaml \
+            ${REDIS_SET} \
             --wait \
             --timeout 10m
         env:
