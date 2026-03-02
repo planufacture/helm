@@ -19,7 +19,7 @@ type: application
 # to the chart and its templates, including the app version.
 # Versions are expected to follow Semantic Versioning (https://semver.org/)
 
-version: 0.1.667
+version: 0.1.668
 
 # This is the version number of the application being deployed. This version number should be
 # incremented each time you make changes to the application. Versions are not expected to
@@ -29,6 +29,6 @@ appVersion: "0.0.248"
 
 dependencies:
   - name: redis
-    version: 23.x.x
+    version: 0.1.668
     repository: https://charts.bitnami.com/bitnami
     condition: redis.enabled
