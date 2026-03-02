@@ -85,6 +85,17 @@ spec:
                   name: {{ include "planufacture.fullname" $ }}-diomac
                   key: key
             {{- end }}
+            {{- if .redis }}
+            - name: SPRING_DATA_REDIS_HOST
+              value: "{{ $.Release.Name }}-redis-master"
+            - name: SPRING_DATA_REDIS_PORT
+              value: "6379"
+            - name: SPRING_DATA_REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: "{{ $.Release.Name }}-redis"
+                  key: redis-password
+            {{- end }}
             {{- with .env }}
             {{- toYaml . | nindent 12 }}
           {{- end }}

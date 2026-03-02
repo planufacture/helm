@@ -84,7 +84,8 @@ Chart version (`0.1.x`) auto-increments its patch number at release time in `rel
 
 ## Conventions
 
-- All container images are in `ghcr.io/planufacture/`
+- All first-party container images are in `ghcr.io/planufacture/`
+- Third-party images must use the ECR pull-through cache: `503561419401.dkr.ecr.eu-west-1.amazonaws.com/docker-hub/` (e.g. `docker.io/bitnami/redis` becomes `503561419401.dkr.ecr.eu-west-1.amazonaws.com/docker-hub/bitnami/redis`)
 - Security context: non-root user (UID 65532) with `capabilities.drop: [ALL]` and `allowPrivilegeEscalation: false` on all containers
 - Image pull secret: `planufacture-credentials`
 - Spring Cloud Config: services use `SPRING_PROFILES_ACTIVE` and `SPRING_CLOUD_CONFIG_LABEL` for profile-based configuration

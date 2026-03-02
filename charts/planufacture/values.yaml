@@ -54,6 +54,7 @@ microServices:
         memory: 1Gi
   gateway:
     replicaCount: 1
+    redis: true
     image:
       tag: 0.0.11
     service:
@@ -104,6 +105,24 @@ axonserver:
     requests:
       cpu: 200m
       memory: 1Gi
+redis:
+  enabled: false
+  architecture: standalone
+  image:
+    registry: 503561419401.dkr.ecr.eu-west-1.amazonaws.com
+    repository: docker-hub/bitnami/redis
+  auth:
+    enabled: true
+  master:
+    persistence:
+      size: 1Gi
+    resources:
+      requests:
+        cpu: 200m
+        memory: 256Mi
+      limits:
+        cpu: '1'
+        memory: 1Gi
 rabbit: {}
 replicaCount: 1
 image:
