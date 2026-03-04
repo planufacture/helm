@@ -40,7 +40,7 @@ microServices:
       # existingSecretKey: mongo-uri
     rabbit: true
     image:
-      tag: 0.0.425
+      tag: 0.0.426
     service:
       port: 9500
     metrics:
