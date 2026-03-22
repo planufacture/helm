@@ -1,0 +1,76 @@
+name: Deploy to Monty
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: monty
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v2
+        with:
+          authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.13.0
+
+      - name: Configure kubeconfig
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBECONFIG }}" | base64 -d > ~/.kube/config
+          kubectl config use-context microk8s
+
+      - name: Verify cluster connection
+        run: kubectl get nodes
+
+      - name: Add Helm repositories
+        run: |
+          helm repo add planufacture https://charts.planufacture.tech
+          helm repo update
+
+      - name: Create values file from secret
+        run: |
+          echo "${{ secrets.HELM_VALUES }}" > values.yaml
+
+      - name: Fetch or generate Redis password
+        run: |
+          REDIS_PASSWORD=$(kubectl get secret --namespace "${NAMESPACE}" "${NAME}-redis" -o jsonpath="{.data.redis-password}" 2>/dev/null | base64 -d) || true
+          if [ -z "${REDIS_PASSWORD}" ]; then
+            REDIS_PASSWORD=$(openssl rand -base64 24)
+          fi
+          echo "REDIS_PASSWORD=${REDIS_PASSWORD}" >> $GITHUB_ENV
+        env:
+          NAMESPACE: ${{ vars.NAMESPACE }}
+          NAME: ${{ vars.NAME }}
+
+      - name: Deploy via Helm
+        run: |
+          echo "Deploying planufacture/planufacture to monty"
+          helm upgrade --install ${NAME} planufacture/planufacture \
+            --namespace "${NAMESPACE}" \
+            --create-namespace \
+            -f values.yaml \
+            --set redis.auth.password="${REDIS_PASSWORD}" \
+            --wait \
+            --timeout 5m
+        env:
+          NAMESPACE: ${{ vars.NAMESPACE }}
+          NAME: ${{ vars.NAME }}
+
+      - name: Verify deployment
+        run: |
+          kubectl get pods -n "${NAMESPACE}"
+          kubectl get ingress -n "${NAMESPACE}"
+        env:
+          NAMESPACE: ${{ vars.NAMESPACE }}
