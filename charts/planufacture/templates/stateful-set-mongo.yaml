@@ -60,17 +60,24 @@ spec:
             - /bin/bash
             - -c
             - |
+              # Save credentials before unsetting env vars
+              ROOT_USER="${MONGO_INITDB_ROOT_USERNAME}"
+              ROOT_PASS="${MONGO_INITDB_ROOT_PASSWORD}"
+
               # Start mongod in the background
               mongod --replSet rs0 --bind_ip_all --keyFile /data/keyfile/mongodb-keyfile &
               MONGOD_PID=$!
 
+              # Unset so mongosh doesn't try to auto-authenticate
+              unset MONGO_INITDB_ROOT_USERNAME MONGO_INITDB_ROOT_PASSWORD
+
               # Wait for mongod to be ready
-              until mongosh --host localhost:27017 --directConnection --quiet --eval "db.adminCommand('ping')" &>/dev/null; do
+              until mongosh --host localhost:27017 --directConnection --eval "db.adminCommand('ping')" &>/dev/null; do
                 sleep 2
               done
 
               # Initialize replica set and create root user if needed
-              mongosh --host localhost:27017 --directConnection --quiet --eval "
+              mongosh --host localhost:27017 --directConnection --eval "
                 try {
                   rs.status();
                   print('Replica set already initialized');
@@ -86,8 +93,8 @@ spec:
                   }
                   print('Node is primary, creating root user...');
                   db.getSiblingDB('admin').createUser({
-                    user: process.env.MONGO_INITDB_ROOT_USERNAME,
-                    pwd: process.env.MONGO_INITDB_ROOT_PASSWORD,
+                    user: '${ROOT_USER}',
+                    pwd: '${ROOT_PASS}',
                     roles: [{ role: 'root', db: 'admin' }]
                   });
                   print('Root user created successfully');
