@@ -23,10 +23,6 @@ spec:
         runAsUser: 999
         fsGroup: 999
       restartPolicy: Never
-      initContainers:
-      - name: wait-mongo
-        image: "{{ .Values.busybox.image.repository }}:{{ .Values.busybox.image.tag }}"
-        command: ['sh', '-c', 'until nc -z -v -w30 mongo 27017; do echo "Waiting for mongo..."; sleep 2; done;']
       containers:
       - name: post-install-job
         image: "{{ .Values.mongo.image.repository }}:{{ .Values.mongo.image.tag }}"
@@ -54,23 +50,22 @@ spec:
         {{- end }}
         {{- end }}
         command:
-        - mongosh
-        - --host
-        - mongo
-        - --port
-        - "27017"
-        - --username
-        - $(MONGO_INITDB_ROOT_USERNAME)
-        - --password
-        - $(MONGO_INITDB_ROOT_PASSWORD)
-        - --eval
-        - |-
+        - /bin/bash
+        - -c
+        - |
+          # Wait for mongo to be ready and accepting authenticated connections
+          until mongosh "mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@mongo:27017/admin?directConnection=true" --eval "db.adminCommand('ping')" &>/dev/null; do
+            echo "Waiting for mongo to be ready..."
+            sleep 5
+          done
+
+          mongosh "mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@mongo:27017/admin?directConnection=true" --eval '
           const users = [];
           {{- range $key, $val := .Values.microServices }}
           {{- if .mongo }}
           users.push({
                user: "{{ .mongo.db }}",
-               pwd: "$({{ .mongo.db | upper | replace "-" "_" }}_PASSWORD)",
+               pwd: process.env.{{ .mongo.db | upper | replace "-" "_" }}_PASSWORD,
                roles: [
                  {
                    db: "{{ .mongo.db }}",
@@ -84,7 +79,15 @@ spec:
           {{- end }}
           {{- end }}
 
-          users.forEach(user => db.getSiblingDB("admin").getUser(user.user) || db.getSiblingDB("admin").createUser(user));
+          users.forEach(user => {
+            if (!db.getSiblingDB("admin").getUser(user.user)) {
+              db.getSiblingDB("admin").createUser(user);
+              print("Created user: " + user.user);
+            } else {
+              print("User already exists: " + user.user);
+            }
+          });
+          '
     {{- with .Values.nodeSelector }}
       nodeSelector:
 {{ toYaml . | indent 8 }}
