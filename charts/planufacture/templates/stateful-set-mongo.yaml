@@ -65,11 +65,10 @@ spec:
                   - /bin/bash
                   - -c
                   - |
-                    until mongosh --host localhost:27017 --eval "db.adminCommand('ping')" &>/dev/null; do
+                    until mongosh --host localhost:27017 --directConnection --eval "db.adminCommand('ping')" &>/dev/null; do
                       sleep 2
                     done
-                    mongosh --host localhost:27017 --eval "
-                      let initiated = false;
+                    mongosh --host localhost:27017 --directConnection --eval "
                       try {
                         rs.status();
                       } catch(e) {
@@ -77,23 +76,17 @@ spec:
                           _id: 'rs0',
                           members: [{ _id: 0, host: '{{ include "planufacture.fullname" $context }}-0:27017' }]
                         });
-                        initiated = true;
-                      }
-                      if (initiated) {
-                        while (true) {
-                          const status = rs.status();
-                          if (status.myState === 1) break;
+                        print('Waiting for primary election...');
+                        while (rs.status().myState !== 1) {
                           sleep(1000);
                         }
-                        try {
-                          db.getSiblingDB('admin').createUser({
-                            user: '${MONGO_INITDB_ROOT_USERNAME}',
-                            pwd: '${MONGO_INITDB_ROOT_PASSWORD}',
-                            roles: [{ role: 'root', db: 'admin' }]
-                          });
-                        } catch(e) {
-                          if (e.codeName !== 'DuplicateKey') throw e;
-                        }
+                        print('Node is primary, creating root user...');
+                        db.getSiblingDB('admin').createUser({
+                          user: '${MONGO_INITDB_ROOT_USERNAME}',
+                          pwd: '${MONGO_INITDB_ROOT_PASSWORD}',
+                          roles: [{ role: 'root', db: 'admin' }]
+                        });
+                        print('Root user created successfully');
                       }
                     "
           env:
