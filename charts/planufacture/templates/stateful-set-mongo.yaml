@@ -56,39 +56,46 @@ spec:
             capabilities:
               drop:
                 - ALL
-          command: [ "mongod" ]
-          args: [ "--replSet", "rs0", "--bind_ip_all", "--keyFile", "/data/keyfile/mongodb-keyfile" ]
-          lifecycle:
-            postStart:
-              exec:
-                command:
-                  - /bin/bash
-                  - -c
-                  - |
-                    until mongosh --host localhost:27017 --directConnection --eval "db.adminCommand('ping')" &>/dev/null; do
-                      sleep 2
-                    done
-                    mongosh --host localhost:27017 --directConnection --eval "
-                      try {
-                        rs.status();
-                      } catch(e) {
-                        rs.initiate({
-                          _id: 'rs0',
-                          members: [{ _id: 0, host: '{{ include "planufacture.fullname" $context }}-0:27017' }]
-                        });
-                        print('Waiting for primary election...');
-                        while (rs.status().myState !== 1) {
-                          sleep(1000);
-                        }
-                        print('Node is primary, creating root user...');
-                        db.getSiblingDB('admin').createUser({
-                          user: '${MONGO_INITDB_ROOT_USERNAME}',
-                          pwd: '${MONGO_INITDB_ROOT_PASSWORD}',
-                          roles: [{ role: 'root', db: 'admin' }]
-                        });
-                        print('Root user created successfully');
-                      }
-                    "
+          command:
+            - /bin/bash
+            - -c
+            - |
+              # Start mongod in the background
+              mongod --replSet rs0 --bind_ip_all --keyFile /data/keyfile/mongodb-keyfile &
+              MONGOD_PID=$!
+
+              # Wait for mongod to be ready
+              until mongosh --host localhost:27017 --directConnection --quiet --eval "db.adminCommand('ping')" &>/dev/null; do
+                sleep 2
+              done
+
+              # Initialize replica set and create root user if needed
+              mongosh --host localhost:27017 --directConnection --quiet --eval "
+                try {
+                  rs.status();
+                  print('Replica set already initialized');
+                } catch(e) {
+                  print('Initializing replica set...');
+                  rs.initiate({
+                    _id: 'rs0',
+                    members: [{ _id: 0, host: '{{ include "planufacture.fullname" $context }}-0:27017' }]
+                  });
+                  print('Waiting for primary election...');
+                  while (rs.status().myState !== 1) {
+                    sleep(1000);
+                  }
+                  print('Node is primary, creating root user...');
+                  db.getSiblingDB('admin').createUser({
+                    user: process.env.MONGO_INITDB_ROOT_USERNAME,
+                    pwd: process.env.MONGO_INITDB_ROOT_PASSWORD,
+                    roles: [{ role: 'root', db: 'admin' }]
+                  });
+                  print('Root user created successfully');
+                }
+              "
+
+              # Wait for mongod to exit
+              wait $MONGOD_PID
           env:
           - name: MONGO_INITDB_ROOT_USERNAME
             value: {{ .Values.mongo.username }}
