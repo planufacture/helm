@@ -69,6 +69,7 @@ spec:
                       sleep 2
                     done
                     mongosh --host localhost:27017 --eval "
+                      let initiated = false;
                       try {
                         rs.status();
                       } catch(e) {
@@ -76,17 +77,23 @@ spec:
                           _id: 'rs0',
                           members: [{ _id: 0, host: '{{ include "planufacture.fullname" $context }}-0:27017' }]
                         });
+                        initiated = true;
                       }
-                    "
-                    sleep 5
-                    mongosh --host localhost:27017 --eval "
-                      const adminDb = db.getSiblingDB('admin');
-                      if (!adminDb.getUser('${MONGO_INITDB_ROOT_USERNAME}')) {
-                        adminDb.createUser({
-                          user: '${MONGO_INITDB_ROOT_USERNAME}',
-                          pwd: '${MONGO_INITDB_ROOT_PASSWORD}',
-                          roles: [{ role: 'root', db: 'admin' }]
-                        });
+                      if (initiated) {
+                        while (true) {
+                          const status = rs.status();
+                          if (status.myState === 1) break;
+                          sleep(1000);
+                        }
+                        try {
+                          db.getSiblingDB('admin').createUser({
+                            user: '${MONGO_INITDB_ROOT_USERNAME}',
+                            pwd: '${MONGO_INITDB_ROOT_PASSWORD}',
+                            roles: [{ role: 'root', db: 'admin' }]
+                          });
+                        } catch(e) {
+                          if (e.codeName !== 'DuplicateKey') throw e;
+                        }
                       }
                     "
           env:
