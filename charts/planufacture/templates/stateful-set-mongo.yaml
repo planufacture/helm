@@ -91,13 +91,23 @@ spec:
                   while (rs.status().myState !== 1) {
                     sleep(1000);
                   }
+                  sleep(3000);
                   print('Node is primary, creating root user...');
-                  db.getSiblingDB('admin').createUser({
-                    user: '${ROOT_USER}',
-                    pwd: '${ROOT_PASS}',
-                    roles: [{ role: 'root', db: 'admin' }]
-                  });
-                  print('Root user created successfully');
+                  let created = false;
+                  for (let i = 0; i < 10 && !created; i++) {
+                    try {
+                      db.getSiblingDB('admin').createUser({
+                        user: '${ROOT_USER}',
+                        pwd: '${ROOT_PASS}',
+                        roles: [{ role: 'root', db: 'admin' }]
+                      });
+                      created = true;
+                      print('Root user created successfully');
+                    } catch(err) {
+                      print('createUser attempt ' + (i+1) + ' failed: ' + err.message);
+                      sleep(2000);
+                    }
+                  }
                 }
               "
 
