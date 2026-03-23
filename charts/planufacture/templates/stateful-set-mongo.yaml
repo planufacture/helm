@@ -63,6 +63,11 @@ spec:
               # Save credentials before unsetting env vars
               ROOT_USER="${MONGO_INITDB_ROOT_USERNAME}"
               ROOT_PASS="${MONGO_INITDB_ROOT_PASSWORD}"
+              {{- range $svcKey, $svcVal := .Values.microServices }}
+              {{- if .mongo }}
+              SAVE_{{ .mongo.db | upper | replace "-" "_" }}_PASSWORD="${{ .mongo.db | upper | replace "-" "_" }}_PASSWORD"
+              {{- end }}
+              {{- end }}
 
               # Start mongod in the background
               mongod --replSet rs0 --bind_ip_all --keyFile /data/keyfile/mongodb-keyfile &
@@ -70,6 +75,12 @@ spec:
 
               # Unset so mongosh doesn't try to auto-authenticate
               unset MONGO_INITDB_ROOT_USERNAME MONGO_INITDB_ROOT_PASSWORD
+              # Export saved passwords for mongosh process.env access
+              {{- range $svcKey, $svcVal := .Values.microServices }}
+              {{- if .mongo }}
+              export SAVE_{{ .mongo.db | upper | replace "-" "_" }}_PASSWORD
+              {{- end }}
+              {{- end }}
 
               # Wait for mongod to be ready
               until mongosh mongodb://localhost:27017/?directConnection=true --eval "db.adminCommand('ping')" &>/dev/null; do
@@ -111,6 +122,25 @@ spec:
                 }
               "
 
+              # Create per-microservice users
+              mongosh "mongodb://${ROOT_USER}:${ROOT_PASS}@localhost:27017/admin?directConnection=true" --eval '
+              {{- range $svcKey, $svcVal := .Values.microServices }}
+              {{- if .mongo }}
+              if (!db.getSiblingDB("admin").getUser("{{ .mongo.db }}")) {
+                db.getSiblingDB("admin").createUser({
+                  user: "{{ .mongo.db }}",
+                  pwd: process.env.SAVE_{{ .mongo.db | upper | replace "-" "_" }}_PASSWORD,
+                  roles: [{ db: "{{ .mongo.db }}", role: "dbOwner" }],
+                  customData: { createdBy: "Helm setup script" }
+                });
+                print("Created user: {{ .mongo.db }}");
+              } else {
+                print("User already exists: {{ .mongo.db }}");
+              }
+              {{- end }}
+              {{- end }}
+              '
+
               # Wait for mongod to exit
               wait $MONGOD_PID
           env:
@@ -121,6 +151,16 @@ spec:
               secretKeyRef:
                 name: {{ include "planufacture.fullname" $context }}
                 key: mongo-root-password
+          {{- range $svcKey, $svcVal := .Values.microServices }}
+          {{- $svcContext := merge (dict "key" ($svcKey | kebabcase)) $ }}
+          {{- if .mongo }}
+          - name: {{ .mongo.db | upper | replace "-" "_" }}_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: {{ include "planufacture.fullname" $svcContext }}
+                key: mongo-password
+          {{- end }}
+          {{- end }}
           ports:
           - containerPort: 27017
             name: mongo
