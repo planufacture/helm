@@ -72,12 +72,12 @@ spec:
               unset MONGO_INITDB_ROOT_USERNAME MONGO_INITDB_ROOT_PASSWORD
 
               # Wait for mongod to be ready
-              until mongosh --host localhost:27017 --directConnection --eval "db.adminCommand('ping')" &>/dev/null; do
+              until mongosh mongodb://localhost:27017/?directConnection=true --eval "db.adminCommand('ping')" &>/dev/null; do
                 sleep 2
               done
 
               # Initialize replica set and create root user if needed
-              mongosh --host localhost:27017 --directConnection --eval "
+              mongosh mongodb://localhost:27017/?directConnection=true --eval "
                 try {
                   rs.status();
                   print('Replica set already initialized');
