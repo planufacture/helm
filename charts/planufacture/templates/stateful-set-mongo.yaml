@@ -122,13 +122,21 @@ spec:
             readOnly: true
           resources:
 {{ toYaml .Values.mongo.resources | indent 12 }}
+          startupProbe:
+            exec:
+              command:
+                - /bin/bash
+                - -c
+                - mongosh --host localhost --port 27017 --username ${MONGO_INITDB_ROOT_USERNAME} --password ${MONGO_INITDB_ROOT_PASSWORD} --authenticationDatabase admin --eval "db.adminCommand('ping')"
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 30
           livenessProbe:
             exec:
               command:
                 - /bin/bash
                 - -c
                 - mongosh --host localhost --port 27017 --username ${MONGO_INITDB_ROOT_USERNAME} --password ${MONGO_INITDB_ROOT_PASSWORD} --authenticationDatabase admin --eval "db.adminCommand('ping')"
-            initialDelaySeconds: 30
             periodSeconds: 10
             timeoutSeconds: 5
             failureThreshold: 6
@@ -138,7 +146,6 @@ spec:
                 - /bin/bash
                 - -c
                 - mongosh --host localhost --port 27017 --username ${MONGO_INITDB_ROOT_USERNAME} --password ${MONGO_INITDB_ROOT_PASSWORD} --authenticationDatabase admin --eval "db.adminCommand('ping')"
-            initialDelaySeconds: 10
             periodSeconds: 10
             timeoutSeconds: 5
             failureThreshold: 3
