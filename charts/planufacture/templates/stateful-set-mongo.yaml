@@ -56,28 +56,63 @@ spec:
             capabilities:
               drop:
                 - ALL
-          command: [ "mongod" ]
-          args: [ "--replSet", "rs0", "--bind_ip_all", "--keyFile", "/data/keyfile/mongodb-keyfile" ]
-          lifecycle:
-            postStart:
-              exec:
-                command:
-                  - /bin/bash
-                  - -c
-                  - |
-                    until mongosh --host localhost:27017 --username ${MONGO_INITDB_ROOT_USERNAME} --password ${MONGO_INITDB_ROOT_PASSWORD} --authenticationDatabase admin --eval "db.adminCommand('ping')" &>/dev/null; do
-                      sleep 2
-                    done
-                    mongosh --host localhost:27017 --username ${MONGO_INITDB_ROOT_USERNAME} --password ${MONGO_INITDB_ROOT_PASSWORD} --authenticationDatabase admin --eval "
-                      try {
-                        rs.status();
-                      } catch(e) {
-                        rs.initiate({
-                          _id: 'rs0',
-                          members: [{ _id: 0, host: '{{ include "planufacture.fullname" $context }}-0:27017' }]
-                        });
-                      }
-                    "
+          command:
+            - /bin/bash
+            - -c
+            - |
+              # Save credentials before unsetting env vars
+              ROOT_USER="${MONGO_INITDB_ROOT_USERNAME}"
+              ROOT_PASS="${MONGO_INITDB_ROOT_PASSWORD}"
+
+              # Start mongod in the background
+              mongod --replSet rs0 --bind_ip_all --keyFile /data/keyfile/mongodb-keyfile &
+              MONGOD_PID=$!
+
+              # Unset so mongosh doesn't try to auto-authenticate
+              unset MONGO_INITDB_ROOT_USERNAME MONGO_INITDB_ROOT_PASSWORD
+
+              # Wait for mongod to be ready
+              until mongosh mongodb://localhost:27017/?directConnection=true --eval "db.adminCommand('ping')" &>/dev/null; do
+                sleep 2
+              done
+
+              # Initialize replica set and create root user if needed
+              mongosh mongodb://localhost:27017/?directConnection=true --eval "
+                try {
+                  rs.status();
+                  print('Replica set already initialized');
+                } catch(e) {
+                  print('Initializing replica set...');
+                  rs.initiate({
+                    _id: 'rs0',
+                    members: [{ _id: 0, host: '{{ include "planufacture.fullname" $context }}-0:27017' }]
+                  });
+                  print('Waiting for primary election...');
+                  while (rs.status().myState !== 1) {
+                    sleep(1000);
+                  }
+                  sleep(3000);
+                  print('Node is primary, creating root user...');
+                  let created = false;
+                  for (let i = 0; i < 10 && !created; i++) {
+                    try {
+                      db.getSiblingDB('admin').createUser({
+                        user: '${ROOT_USER}',
+                        pwd: '${ROOT_PASS}',
+                        roles: [{ role: 'root', db: 'admin' }]
+                      });
+                      created = true;
+                      print('Root user created successfully');
+                    } catch(err) {
+                      print('createUser attempt ' + (i+1) + ' failed: ' + err.message);
+                      sleep(2000);
+                    }
+                  }
+                }
+              "
+
+              # Wait for mongod to exit
+              wait $MONGOD_PID
           env:
           - name: MONGO_INITDB_ROOT_USERNAME
             value: {{ .Values.mongo.username }}
@@ -97,13 +132,21 @@ spec:
             readOnly: true
           resources:
 {{ toYaml .Values.mongo.resources | indent 12 }}
+          startupProbe:
+            exec:
+              command:
+                - /bin/bash
+                - -c
+                - mongosh --host localhost --port 27017 --username ${MONGO_INITDB_ROOT_USERNAME} --password ${MONGO_INITDB_ROOT_PASSWORD} --authenticationDatabase admin --eval "db.adminCommand('ping')"
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 30
           livenessProbe:
             exec:
               command:
                 - /bin/bash
                 - -c
                 - mongosh --host localhost --port 27017 --username ${MONGO_INITDB_ROOT_USERNAME} --password ${MONGO_INITDB_ROOT_PASSWORD} --authenticationDatabase admin --eval "db.adminCommand('ping')"
-            initialDelaySeconds: 30
             periodSeconds: 10
             timeoutSeconds: 5
             failureThreshold: 6
@@ -113,7 +156,6 @@ spec:
                 - /bin/bash
                 - -c
                 - mongosh --host localhost --port 27017 --username ${MONGO_INITDB_ROOT_USERNAME} --password ${MONGO_INITDB_ROOT_PASSWORD} --authenticationDatabase admin --eval "db.adminCommand('ping')"
-            initialDelaySeconds: 10
             periodSeconds: 10
             timeoutSeconds: 5
             failureThreshold: 3
