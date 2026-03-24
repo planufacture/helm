@@ -33,6 +33,12 @@ spec:
       serviceAccountName: {{ include "planufacture.serviceAccountName" $ }}
       securityContext:
         {{- toYaml $.Values.podSecurityContext | nindent 8 }}
+      {{- if and (ne $key "configServer") $.Values.microServices.configServer }}
+      initContainers:
+        - name: wait-config-server
+          image: "{{ $.Values.busybox.image.repository }}:{{ $.Values.busybox.image.tag }}"
+          command: ['sh', '-c', 'until wget -qO- http://{{ include "planufacture.name" $ }}-config-server:8888/actuator/health > /dev/null 2>&1; do echo "Waiting for config-server..."; sleep 5; done;']
+      {{- end }}
       containers:
         - name: {{ $.Chart.Name }}-{{ $key | kebabcase }}
           securityContext:
