@@ -61,6 +61,13 @@ microServices:
       port: 9501
     metrics:
       enabled: true
+  mcp:
+    image:
+      tag: 0.0.1
+    service:
+      port: 9510
+    metrics:
+      enabled: true
   diomacConnector:
     schedule: "*/5 5-20 * * *"
     timeZone: "Europe/Dublin"
