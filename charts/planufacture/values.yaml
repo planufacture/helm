@@ -73,7 +73,7 @@ microServices:
     schedule: "*/5 5-20 * * *"
     timeZone: "Europe/Dublin"
     image:
-      tag: 0.0.114
+      tag: 0.0.115
     mongo:
       db: diomac-connector
       # existingSecret: atlas-diomac-connector-credentials
