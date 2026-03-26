@@ -1,6 +1,6 @@
 {{- range $key, $val := .Values.microServices }}
 {{- $context := merge (dict "key" $key) $ }}
-{{- if .service }}
+{{- if and (.service) (or (not (hasKey . "enabled")) .enabled) }}
 apiVersion: v1
 kind: Service
 metadata:
