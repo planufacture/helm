@@ -3,6 +3,23 @@ entries:
   planufacture:
   - apiVersion: v2
     appVersion: 0.0.253
+    created: "2026-04-14T15:37:50.875599402Z"
+    dependencies:
+    - condition: redis.enabled
+      name: redis
+      repository: https://charts.bitnami.com/bitnami
+      version: 23.x.x
+    description: A Helm chart for Kubernetes
+    digest: 65671e0b2696d0cd50d08b25c370870c879aa0d53c05cda1c30188322757b334
+    maintainers:
+    - name: keatingn
+    name: planufacture
+    type: application
+    urls:
+    - https://github.com/planufacture/helm/releases/download/planufacture-0.1.745/planufacture-0.1.745.tgz
+    version: 0.1.745
+  - apiVersion: v2
+    appVersion: 0.0.253
     created: "2026-04-14T12:57:47.270728033Z"
     dependencies:
     - condition: redis.enabled
@@ -9274,4 +9291,4 @@ entries:
     urls:
     - https://github.com/planufacture/helm/releases/download/planufacture-demo-0.1.1/planufacture-demo-0.1.1.tgz
     version: 0.1.1
-generated: "2026-04-14T12:57:47.273287511Z"
+generated: "2026-04-14T15:37:50.87703151Z"
