@@ -78,6 +78,9 @@ microServices:
       db: diomac-connector
       # existingSecret: atlas-diomac-connector-credentials
       # existingSecretKey: mongo-uri
+  solver:
+    image:
+      tag: 1.3.0
 busybox:
   image:
     repository: 503561419401.dkr.ecr.eu-west-1.amazonaws.com/docker-hub/library/busybox
