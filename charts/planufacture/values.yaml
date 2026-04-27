@@ -52,7 +52,6 @@ microServices:
       limits:
         cpu: '1'
         memory: 1Gi
-
   gateway:
     replicaCount: 2
     redis: true
@@ -82,7 +81,7 @@ microServices:
   solver:
     image:
       repository: ghcr.io/planufacture/solver
-      tag: 1.3.0
+      tag: 1.3.1
     mongo:
       db: solver
       # existingSecret: atlas-solver-credentials
