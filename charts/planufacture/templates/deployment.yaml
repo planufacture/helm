@@ -91,6 +91,18 @@ spec:
                   name: {{ include "planufacture.fullname" $ }}-diomac
                   key: key
             {{- end }}
+            {{- if eq $key "solver" }}
+            - name: SOLVER_OAUTH2_CLIENT
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "planufacture.fullname" $ }}-solver
+                  key: clientId
+            - name: SOLVER_OAUTH2_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "planufacture.fullname" $ }}-solver
+                  key: clientSecret
+            {{- end }}
             {{- if .redis }}
             - name: SPRING_DATA_REDIS_HOST
               value: "{{ $.Release.Name }}-redis-master"
