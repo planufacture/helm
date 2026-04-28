@@ -88,20 +88,6 @@ microServices:
       # existingSecretKey: mongo-uri
     service:
       port: 9520
-    startupProbe:
-      httpGet:
-        path: /
-        port: http
-      failureThreshold: 10
-      periodSeconds: 5
-    livenessProbe:
-      httpGet:
-        path: /
-        port: http
-    readinessProbe:
-      httpGet:
-        path: /
-        port: http
 busybox:
   image:
     repository: 503561419401.dkr.ecr.eu-west-1.amazonaws.com/docker-hub/library/busybox
