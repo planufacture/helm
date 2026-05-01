@@ -105,21 +105,27 @@ spec:
             {{- end }}
             {{- if .redis }}
             - name: SPRING_DATA_REDIS_HOST
-              value: {{ required "redis.host is required when a microService has .redis: true" $.Values.redis.host | quote }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ required "redis.existingSecret is required when a microService has .redis: true" $.Values.redis.existingSecret }}
+                  key: host
             - name: SPRING_DATA_REDIS_PORT
-              value: {{ $.Values.redis.port | quote }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $.Values.redis.existingSecret }}
+                  key: port
             - name: SPRING_DATA_REDIS_SSL_ENABLED
               value: {{ $.Values.redis.tls | quote }}
             - name: SPRING_DATA_REDIS_USERNAME
               valueFrom:
                 secretKeyRef:
-                  name: {{ required "redis.existingSecret is required when a microService has .redis: true" $.Values.redis.existingSecret }}
-                  key: {{ $.Values.redis.existingSecretUsernameKey }}
+                  name: {{ $.Values.redis.existingSecret }}
+                  key: username
             - name: SPRING_DATA_REDIS_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: {{ $.Values.redis.existingSecret }}
-                  key: {{ $.Values.redis.existingSecretPasswordKey }}
+                  key: password
             # Spring Session Redis keys default to "spring:session:*". The
             # tenant ACL user on the shared redis only permits "<namespace>:*",
             # so prefix the session namespace with the release namespace.
