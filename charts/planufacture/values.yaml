@@ -124,15 +124,16 @@ axonserver:
       cpu: 200m
       memory: 1Gi
 # Shared in-cluster Redis (Bitnami chart deployed by terraform/modules/redis-incluster
-# into the `infrastructure` namespace). Connection details come from a kubernetes
-# Secret (default name "redis-credentials") provisioned by the same module into
-# each tenant namespace. Apps must namespace keys with "<release-namespace>:" —
-# the ACL user only permits keys matching that prefix.
+# into the `infrastructure` namespace). All connection details — host, port,
+# username, password — come from a kubernetes Secret (default name
+# "redis-credentials") provisioned by the same module into each tenant
+# namespace. Apps must namespace keys with "<release-namespace>:" — the ACL
+# user only permits keys matching that prefix.
 redis:
-  host: redis-master.infrastructure.svc
-  port: 6379
   tls: false
   existingSecret: redis-credentials
+  existingSecretHostKey: host
+  existingSecretPortKey: port
   existingSecretUsernameKey: username
   existingSecretPasswordKey: password
 rabbit: {}
