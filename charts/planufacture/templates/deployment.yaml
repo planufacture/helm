@@ -120,6 +120,11 @@ spec:
                 secretKeyRef:
                   name: {{ $.Values.redis.existingSecret }}
                   key: {{ $.Values.redis.existingSecretPasswordKey }}
+            # Spring Session Redis keys default to "spring:session:*". The
+            # tenant ACL user on the shared redis only permits "<namespace>:*",
+            # so prefix the session namespace with the release namespace.
+            - name: SPRING_SESSION_REDIS_NAMESPACE
+              value: "{{ $.Release.Namespace }}:spring:session"
             {{- end }}
             {{- with .env }}
             {{- toYaml . | nindent 12 }}
