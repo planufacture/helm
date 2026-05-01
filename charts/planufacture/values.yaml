@@ -123,27 +123,18 @@ axonserver:
     requests:
       cpu: 200m
       memory: 1Gi
+# Shared in-cluster Redis (Bitnami chart deployed by terraform/modules/redis-incluster
+# into the `infrastructure` namespace). Connection details come from a kubernetes
+# Secret (default name "redis-credentials") provisioned by the same module into
+# each tenant namespace. Apps must namespace keys with "<release-namespace>:" —
+# the ACL user only permits keys matching that prefix.
 redis:
-  enabled: true
-  global:
-    security:
-      allowInsecureImages: true
-  image:
-    registry: 503561419401.dkr.ecr.eu-west-1.amazonaws.com
-    repository: docker-hub/bitnami/redis
-    tag: latest
-  auth:
-    enabled: true
-  master:
-    persistence:
-      size: 1Gi
-    resources:
-      requests:
-        cpu: 200m
-        memory: 256Mi
-      limits:
-        cpu: '1'
-        memory: 1Gi
+  host: redis-master.infrastructure.svc
+  port: 6379
+  tls: false
+  existingSecret: redis-credentials
+  existingSecretUsernameKey: username
+  existingSecretPasswordKey: password
 rabbit: {}
 replicaCount: 1
 image:

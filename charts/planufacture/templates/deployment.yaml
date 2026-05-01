@@ -105,14 +105,21 @@ spec:
             {{- end }}
             {{- if .redis }}
             - name: SPRING_DATA_REDIS_HOST
-              value: "{{ $.Release.Name }}-redis-master"
+              value: {{ required "redis.host is required when a microService has .redis: true" $.Values.redis.host | quote }}
             - name: SPRING_DATA_REDIS_PORT
-              value: "6379"
+              value: {{ $.Values.redis.port | quote }}
+            - name: SPRING_DATA_REDIS_SSL_ENABLED
+              value: {{ $.Values.redis.tls | quote }}
+            - name: SPRING_DATA_REDIS_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ required "redis.existingSecret is required when a microService has .redis: true" $.Values.redis.existingSecret }}
+                  key: {{ $.Values.redis.existingSecretUsernameKey }}
             - name: SPRING_DATA_REDIS_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: "{{ $.Release.Name }}-redis"
-                  key: redis-password
+                  name: {{ $.Values.redis.existingSecret }}
+                  key: {{ $.Values.redis.existingSecretPasswordKey }}
             {{- end }}
             {{- with .env }}
             {{- toYaml . | nindent 12 }}
