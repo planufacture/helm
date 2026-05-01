@@ -92,16 +92,18 @@ spec:
                   key: key
             {{- end }}
             {{- if eq $key "solver" }}
+            # OAuth client for solver — provisioned per tenant by terraform's
+            # keycloak-tenants module into the keycloak-credentials Secret.
             - name: SOLVER_OAUTH2_CLIENT
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "planufacture.fullname" $ }}-solver
-                  key: clientId
+                  name: {{ $.Values.keycloak.existingSecret }}
+                  key: solver-client-id
             - name: SOLVER_OAUTH2_SECRET
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "planufacture.fullname" $ }}-solver
-                  key: clientSecret
+                  name: {{ $.Values.keycloak.existingSecret }}
+                  key: solver-client-secret
             {{- end }}
             {{- if .redis }}
             # Sentinel discovery: Lettuce connects to a sentinel on port
