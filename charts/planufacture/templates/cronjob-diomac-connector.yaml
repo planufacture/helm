@@ -61,16 +61,21 @@ spec:
                       name: {{ include "planufacture.fullname" $ }}-diomac
                       key: key
 
+                # OAuth client for diomac-connector — provisioned per tenant
+                # by terraform's keycloak-tenants module into the
+                # keycloak-credentials Secret. (DIOMAC_API_KEY above stays in
+                # the chart-managed -diomac Secret because it's the Diomac
+                # platform's external API key, not a Keycloak credential.)
                 - name: DIOMAC_OAUTH2_CLIENT
                   valueFrom:
                     secretKeyRef:
-                      name: {{ include "planufacture.fullname" $ }}-diomac
-                      key: clientId
+                      name: {{ $.Values.keycloak.existingSecret }}
+                      key: diomac-client-id
                 - name: DIOMAC_OAUTH2_SECRET
                   valueFrom:
                     secretKeyRef:
-                      name: {{ include "planufacture.fullname" $ }}-diomac
-                      key: clientSecret
+                      name: {{ $.Values.keycloak.existingSecret }}
+                      key: diomac-client-secret
                 - name: SPRING_RABBITMQ_HOST
                   value: "rabbitmq-cluster.infrastructure.svc"
                 - name: SPRING_RABBITMQ_PORT
