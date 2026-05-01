@@ -104,16 +104,21 @@ spec:
                   key: clientSecret
             {{- end }}
             {{- if .redis }}
-            - name: SPRING_DATA_REDIS_HOST
+            # Sentinel discovery: Lettuce connects to a sentinel on port
+            # 26379 to find the current master, then talks to the master
+            # directly. The shared redis service round-robins across all
+            # pods, so a plain host/port connection lands writes on a
+            # replica and fails with READONLY.
+            - name: SPRING_DATA_REDIS_SENTINEL_MASTER
               valueFrom:
                 secretKeyRef:
                   name: {{ required "redis.existingSecret is required when a microService has .redis: true" $.Values.redis.existingSecret }}
-                  key: host
-            - name: SPRING_DATA_REDIS_PORT
+                  key: sentinel-master
+            - name: SPRING_DATA_REDIS_SENTINEL_NODES
               valueFrom:
                 secretKeyRef:
                   name: {{ $.Values.redis.existingSecret }}
-                  key: port
+                  key: sentinel-nodes
             - name: SPRING_DATA_REDIS_SSL_ENABLED
               value: {{ $.Values.redis.tls | quote }}
             - name: SPRING_DATA_REDIS_USERNAME
