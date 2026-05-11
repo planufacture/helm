@@ -113,6 +113,8 @@ spec:
             - name: SPRING_RABBITMQ_VIRTUAL_HOST
               value: {{ $.Release.Namespace }}
             {{- end }}
+            {{- end }}
+            {{- if eq $key "domain" }}
             - name: ADMIN_DIOMAC_API_KEY
               valueFrom:
                 secretKeyRef:
