@@ -36,8 +36,8 @@ microServices:
     replicaCount: 1
     mongo:
       db: domain
-      # existingSecret: atlas-domain-credentials
-      # existingSecretKey: mongo-uri
+      existingSecret: mongodb-credentials
+      existingSecretKey: domain-connection-string
     rabbit: true
     image:
       tag: 0.0.483
@@ -76,8 +76,8 @@ microServices:
       tag: 0.0.117
     mongo:
       db: diomac-connector
-      # existingSecret: atlas-diomac-connector-credentials
-      # existingSecretKey: mongo-uri
+      existingSecret: mongodb-credentials
+      existingSecretKey: diomac-connection-string
   solver:
     image:
       repository: ghcr.io/planufacture/solver
@@ -138,7 +138,14 @@ redis:
 # from this Secret.
 keycloak:
   existingSecret: keycloak-credentials
-rabbit: {}
+# Per-env credentials for the shared in-cluster RabbitMQ broker
+# (`rabbit.infrastructure.svc`), provisioned by terraform into a Secret in
+# each tenant namespace. Holds host, port, vhost, username, password, and a
+# full connection-string. When `existingSecret` is set, all SPRING_RABBITMQ_*
+# env vars are sourced from it; the old broker (rabbitmq-cluster) is used
+# when an env overrides this to an empty string and provides `rabbit.password`.
+rabbit:
+  existingSecret: rabbitmq-credentials
 replicaCount: 1
 image:
   repository: nginx
