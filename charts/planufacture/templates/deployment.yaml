@@ -135,6 +135,16 @@ spec:
                   name: {{ $.Values.keycloak.existingSecret }}
                   key: solver-client-secret
             {{- end }}
+            {{- if eq $key "gateway" }}
+            # Public OIDC client for the tenant's UI login flow — provisioned
+            # by terraform's keycloak-tenants module into the
+            # keycloak-credentials Secret. No client secret (Auth Code + PKCE).
+            - name: GATEWAY_OAUTH2_CLIENT
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $.Values.keycloak.existingSecret }}
+                  key: gateway-client-id
+            {{- end }}
             {{- if .redis }}
             # Sentinel discovery: Lettuce connects to a sentinel on port
             # 26379 to find the current master, then talks to the master
