@@ -82,10 +82,6 @@ microServices:
     image:
       repository: ghcr.io/planufacture/solver
       tag: 1.3.10
-    mongo:
-      db: solver
-      # existingSecret: atlas-solver-credentials
-      # existingSecretKey: mongo-uri
     service:
       port: 9520
 busybox:
