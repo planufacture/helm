@@ -82,6 +82,10 @@ microServices:
     image:
       repository: ghcr.io/planufacture/solver
       tag: 1.3.22
+    mongo:
+      db: solver
+      existingSecret: mongodb-credentials
+      existingSecretKey: solver-connection-string
     service:
       port: 9520
 busybox:
