@@ -11,8 +11,8 @@ imageRegistry: ghcr.io
 microServices:
   ui:
     image:
-      repository: planufacture/ui
-      tag: 0.1.48
+      repository: ghcr.io/planufacture/ui
+      tag: 0.1.49
     service:
       port: 3000
     startupProbe:
