@@ -28,7 +28,7 @@ spec:
           {{- end }}
           containers:
             - name: diomac-connector
-              image: "ghcr.io/planufacture/diomac-connector:{{ $.Values.microServices.diomacConnector.image.tag | default $.Chart.AppVersion }}"
+              image: "{{ $.Values.imageRegistry }}/planufacture/diomac-connector:{{ $.Values.microServices.diomacConnector.image.tag | default $.Chart.AppVersion }}"
               imagePullPolicy: {{ $.Values.image.pullPolicy }}
               securityContext:
                 allowPrivilegeEscalation: false

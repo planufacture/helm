@@ -43,7 +43,7 @@ spec:
         - name: {{ $.Chart.Name }}-{{ $key | kebabcase }}
           securityContext:
             {{- toYaml $.Values.securityContext | nindent 12 }}
-          image: "{{ .image.repository | default (printf "ghcr.io/planufacture/planufacture-%s" ($key | kebabcase)) }}:{{ .image.tag | default $.Chart.AppVersion }}"
+          image: "{{ $.Values.imageRegistry }}/{{ .image.repository | default (printf "planufacture/planufacture-%s" ($key | kebabcase)) }}:{{ .image.tag | default $.Chart.AppVersion }}"
           imagePullPolicy: {{ $.Values.image.pullPolicy }}
           ports:
             - name: http
