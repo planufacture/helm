@@ -3,6 +3,11 @@
 # Declare variables to be passed into your templates.
 ---
 application: {}
+# Registry (host, optionally + pull-through-cache prefix) for the planufacture
+# service images. Defaults to ghcr.io. On EKS, override to the ECR mirror so
+# pods pull via node IAM and no imagePullSecret is needed, e.g.
+#   imageRegistry: 503561419401.dkr.ecr.eu-west-1.amazonaws.com/ghcr
+imageRegistry: ghcr.io
 microServices:
   ui:
     image:
@@ -40,7 +45,7 @@ microServices:
       existingSecretKey: domain-connection-string
     rabbit: true
     image:
-      tag: 0.0.601
+      tag: 0.0.603
     service:
       port: 9500
     metrics:
@@ -80,7 +85,7 @@ microServices:
       existingSecretKey: diomac-connection-string
   solver:
     image:
-      repository: ghcr.io/planufacture/solver
+      repository: planufacture/solver
       tag: 1.3.29
     mongo:
       db: solver
@@ -152,6 +157,9 @@ image:
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
   tag: ""
+# Only needed when pulling the planufacture images from ghcr.io (the default).
+# On EKS with imageRegistry pointed at the ECR mirror, pods pull via node IAM —
+# set this to [] and the ghcr pull secret is no longer required.
 imagePullSecrets:
   - name: planufacture-credentials
 nameOverride: ""
