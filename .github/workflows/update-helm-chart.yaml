@@ -11,9 +11,16 @@ jobs:
     permissions:
       contents: write
     steps:
+      - name: Generate GitHub App installation token
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1  # v3.2.0
+        with:
+          app-id: ${{ secrets.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+
       - uses: actions/checkout@v7.0.0
         with:
-          token: ${{ secrets.GH_PAC }}
+          token: ${{ steps.app-token.outputs.token }}
 
       - name: Install yq
         run: |
@@ -39,7 +46,7 @@ jobs:
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v8
         with:
-          token: ${{ secrets.GH_PAC }}
+          token: ${{ steps.app-token.outputs.token }}
           commit-message: "chore: update ${{ github.event.client_payload.service }} version to ${{ github.event.client_payload.version }}"
           title: "chore: update ${{ github.event.client_payload.service }} version to ${{ github.event.client_payload.version }}"
           body: |
@@ -52,7 +59,7 @@ jobs:
 # Enable when upgraded to GitHub teams
 #      - name: Auto-merge if checks pass
 #        env:
-#          GH_TOKEN: ${{ secrets.GH_PAC }}
+#          GH_TOKEN: ${{ steps.app-token.outputs.token }}
 #        run: |
 #          PR_NUMBER=$(gh pr list --json number --jq '.[0].number')
 #          if [ ! -z "$PR_NUMBER" ]; then
