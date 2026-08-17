@@ -69,7 +69,7 @@ microServices:
   mcp:
     enabled: false
     image:
-      tag: 0.0.31
+      tag: 0.0.32
     service:
       port: 9510
     metrics:
