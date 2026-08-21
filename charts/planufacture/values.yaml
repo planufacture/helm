@@ -12,7 +12,7 @@ microServices:
   ui:
     image:
       repository: ghcr.io/planufacture/ui
-      tag: 0.1.103
+      tag: 0.1.104
     service:
       port: 3000
     startupProbe:
