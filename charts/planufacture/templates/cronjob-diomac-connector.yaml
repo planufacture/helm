@@ -3,7 +3,7 @@ kind: CronJob
 metadata:
   name: "{{.Release.Name}}"
   labels:
-    {{- include "planufacture.labels" . | nindent 4 }}
+    {{- include "planufacture.labels" (merge (dict "versionKey" "diomacConnector") $) | nindent 4 }}
 spec:
   schedule: {{ $.Values.microServices.diomacConnector.schedule | quote }}
   timeZone: {{ $.Values.microServices.diomacConnector.timeZone | quote }}
