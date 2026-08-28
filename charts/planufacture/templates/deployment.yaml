@@ -40,10 +40,16 @@ spec:
           command: ['sh', '-c', 'until wget -qO- http://{{ include "planufacture.name" $ }}-config-server:8888/actuator/health > /dev/null 2>&1; do echo "Waiting for config-server..."; sleep 5; done;']
       {{- end }}
       containers:
+        {{- /* `image` may be absent or null; without this the repository default below
+               is unreachable and rendering dies on a nil pointer. */}}
+        {{- $image := dict }}
+        {{- if kindIs "map" .image }}
+        {{- $image = .image }}
+        {{- end }}
         - name: {{ $.Chart.Name }}-{{ $key | kebabcase }}
           securityContext:
             {{- toYaml $.Values.securityContext | nindent 12 }}
-          image: "{{ $.Values.imageRegistry }}/{{ .image.repository | default (printf "planufacture/planufacture-%s" ($key | kebabcase)) }}:{{ .image.tag | default $.Chart.AppVersion }}"
+          image: "{{ $.Values.imageRegistry }}/{{ $image.repository | default (printf "planufacture/planufacture-%s" ($key | kebabcase)) }}:{{ $image.tag | default $.Chart.AppVersion }}"
           imagePullPolicy: {{ $.Values.image.pullPolicy }}
           ports:
             - name: http
