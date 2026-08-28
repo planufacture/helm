@@ -51,13 +51,31 @@ needlessly roll every Deployment and StatefulSet.
 {{- $version := .Chart.AppVersion -}}
 {{- $key := default .key .versionKey -}}
 {{- if $key -}}
-{{- $component := default (index .Values $key) (index .Values.microServices $key) -}}
-{{- $tag := dig "image" "tag" "" (default (dict) $component) -}}
+{{/* Some callers pass a kebab-cased key (secret-mongo-micro-services.yaml,
+     job-mongo-accounts.yaml, stateful-set-mongo.yaml), so try both spellings. */}}
+{{- $camelKey := $key | camelcase | untitle -}}
+{{- $component := "" -}}
+{{- range $candidate := list (index .Values.microServices $key) (index .Values.microServices $camelKey) (index .Values $key) -}}
+{{- if and (not $component) (kindIs "map" $candidate) -}}
+{{- $component = $candidate -}}
+{{- end -}}
+{{- end -}}
+{{- $tag := "" -}}
+{{- if $component -}}
+{{- $image := get $component "image" -}}
+{{- if kindIs "map" $image -}}
+{{- $tag = get $image "tag" | toString -}}
+{{- end -}}
+{{- end -}}
 {{- if $tag -}}
 {{- $version = $tag -}}
 {{- end -}}
 {{- end -}}
-{{- $version | toString -}}
+{{/* Image tags are not guaranteed to be valid label values — a semver build-metadata
+     tag like 1.2.3+abc, or one over 63 chars, would fail API validation on every
+     labelled resource. Sanitise rather than let a tag break the whole upgrade. */}}
+{{- $safe := regexReplaceAll "[^A-Za-z0-9_.-]" ($version | toString) "_" -}}
+{{- $safe | trunc 63 | trimAll "-._" -}}
 {{- end }}
 
 {{/*
