@@ -36,13 +36,57 @@ Create chart name and version as used by the chart label.
 {{- end }}
 
 {{/*
+Version label for a component.
+
+Resolves to the component's OWN image tag (microServices.<key>.image.tag, or
+<key>.image.tag for mongo/axonserver) and only falls back to .Chart.AppVersion
+when the component has no tag of its own. Set "versionKey" in the context to point
+at a different component's tag (e.g. the axonserver-gui Service reports axonserver's).
+
+This matters because these labels land in pod templates: appVersion tracks the UI
+version, so using it everywhere made a UI bump change every pod template hash and
+needlessly roll every Deployment and StatefulSet.
+*/}}
+{{- define "planufacture.version" -}}
+{{- $version := .Chart.AppVersion -}}
+{{- $key := default .key .versionKey -}}
+{{- if $key -}}
+{{/* Some callers pass a kebab-cased key (secret-mongo-micro-services.yaml,
+     job-mongo-accounts.yaml, stateful-set-mongo.yaml), so try both spellings. */}}
+{{- $camelKey := $key | camelcase | untitle -}}
+{{- $component := "" -}}
+{{- range $candidate := list (index .Values.microServices $key) (index .Values.microServices $camelKey) (index .Values $key) -}}
+{{- if and (not $component) (kindIs "map" $candidate) -}}
+{{- $component = $candidate -}}
+{{- end -}}
+{{- end -}}
+{{- $tag := "" -}}
+{{- if $component -}}
+{{- $image := get $component "image" -}}
+{{- if kindIs "map" $image -}}
+{{- $tag = get $image "tag" | toString -}}
+{{- end -}}
+{{- end -}}
+{{- if $tag -}}
+{{- $version = $tag -}}
+{{- end -}}
+{{- end -}}
+{{/* Image tags are not guaranteed to be valid label values — a semver build-metadata
+     tag like 1.2.3+abc, or one over 63 chars, would fail API validation on every
+     labelled resource. Sanitise rather than let a tag break the whole upgrade. */}}
+{{- $safe := regexReplaceAll "[^A-Za-z0-9_.-]" ($version | toString) "_" -}}
+{{- $safe | trunc 63 | trimAll "-._" -}}
+{{- end }}
+
+{{/*
 Common labels
 */}}
 {{- define "planufacture.labels" -}}
 helm.sh/chart: {{ include "planufacture.chart" . }}
 {{ include "planufacture.selectorLabels" . }}
-{{- if .Chart.AppVersion }}
-app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+{{- $version := include "planufacture.version" . }}
+{{- if $version }}
+app.kubernetes.io/version: {{ $version | quote }}
 {{- end }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end }}

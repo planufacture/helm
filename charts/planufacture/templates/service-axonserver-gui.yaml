@@ -1,5 +1,5 @@
 {{- if .Values.axonserver.enabled}}
-{{- $context := merge (dict "key" "axonserver-gui") $ }}
+{{- $context := merge (dict "key" "axonserver-gui" "versionKey" "axonserver") $ }}
 apiVersion: v1
 kind: Service
 metadata:

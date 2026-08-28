@@ -3,7 +3,7 @@ kind: CronJob
 metadata:
   name: "{{.Release.Name}}"
   labels:
-    {{- include "planufacture.labels" . | nindent 4 }}
+    {{- include "planufacture.labels" (merge (dict "versionKey" "diomacConnector") $) | nindent 4 }}
 spec:
   schedule: {{ $.Values.microServices.diomacConnector.schedule | quote }}
   timeZone: {{ $.Values.microServices.diomacConnector.timeZone | quote }}
@@ -27,8 +27,12 @@ spec:
               command: ['sh', '-c', 'until nc -z -v -w30 mongo 27017; do echo "Waiting for mongo..."; sleep 2; done;']
           {{- end }}
           containers:
+            {{- $image := dict }}
+            {{- if kindIs "map" $.Values.microServices.diomacConnector.image }}
+            {{- $image = $.Values.microServices.diomacConnector.image }}
+            {{- end }}
             - name: diomac-connector
-              image: "{{ $.Values.imageRegistry }}/planufacture/diomac-connector:{{ $.Values.microServices.diomacConnector.image.tag | default $.Chart.AppVersion }}"
+              image: "{{ $.Values.imageRegistry }}/planufacture/diomac-connector:{{ $image.tag | default $.Chart.AppVersion }}"
               imagePullPolicy: {{ $.Values.image.pullPolicy }}
               securityContext:
                 allowPrivilegeEscalation: false
