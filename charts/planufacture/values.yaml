@@ -78,7 +78,7 @@ microServices:
     schedule: "*/5 5-20 * * *"
     timeZone: "Europe/Dublin"
     image:
-      tag: 0.0.159
+      tag: 0.0.160
     mongo:
       db: diomac-connector
       existingSecret: mongodb-credentials
