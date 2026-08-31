@@ -12,7 +12,7 @@ microServices:
   ui:
     image:
       repository: planufacture/ui
-      tag: 0.1.114
+      tag: 0.1.115
     service:
       port: 3000
     startupProbe:
