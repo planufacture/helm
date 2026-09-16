@@ -79,6 +79,11 @@ microServices:
     # that don't use it — the CronJob, the -diomac Secret (and so the
     # `diomac.key` requirement) and domain's ADMIN_DIOMAC_API_KEY are all
     # omitted, as is its mongo user when mongo.enabled is true.
+    #
+    # This flag covers the chart only. Also leave `admin.diomac.base-url` unset
+    # in the tenant's config-server profile: domain builds its Diomac client off
+    # that property, so a profile that inherits one (the development profile
+    # does) would have domain calling Diomac with no api-key behind it.
     enabled: true
     schedule: "*/5 5-20 * * *"
     timeZone: "Europe/Dublin"
