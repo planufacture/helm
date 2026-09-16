@@ -39,6 +39,8 @@ There is no Makefile or package.json. All CI automation is in GitHub Actions wor
 ### Multi-Service Template Pattern
 The core design pattern is a **single deployment template** (`templates/deployment.yaml`) that loops over `values.microServices` to generate one Deployment per service. The same pattern applies to `service.yaml` and `secret-mongo-micro-services.yaml`. Each microservice entry in values can declare `.service`, `.mongo`, `.rabbit`, `.axon` flags to conditionally attach environment variables and dependencies. Per-service `resources` can be set with a fallback to the global `resources` default.
 
+A service is on unless it opts out: only an explicit `enabled: false` switches one off, and templates test this with the `planufacture.componentEnabled` helper rather than checking `.enabled` inline.
+
 ### Context Merging
 Templates use a context-merging pattern to pass the current microservice key into shared helpers:
 ```
@@ -61,7 +63,7 @@ When disabled (e.g. using MongoDB Atlas), each microservice with `.mongo` must p
 Event sourcing server with separate PVCs for data, events, and logs. Controlled by `axonserver.enabled`. **Note**: StatefulSet `volumeClaimTemplates` are immutable — storage sizes cannot be changed via `helm upgrade`. Resize existing PVCs with `kubectl patch pvc` instead.
 
 ### CronJobs
-- **Diomac Connector**: Schedule and timezone are configurable via `microServices.diomacConnector.schedule` and `.timeZone`. The `wait-mongo` init container is only included when `mongo.enabled: true`.
+- **Diomac Connector**: Schedule and timezone are configurable via `microServices.diomacConnector.schedule` and `.timeZone`. The `wait-mongo` init container is only included when `mongo.enabled: true`. Diomac is a per-customer integration: set `microServices.diomacConnector.enabled: false` for tenants that don't use it and the CronJob, the `-diomac` Secret (so `diomac.key` is no longer required) and domain's `ADMIN_DIOMAC_API_KEY` are all omitted. Defaults to `true`.
 
 ### Monitoring
 ServiceMonitor resources (Prometheus Operator CRD) can be created per microservice by setting `metrics.enabled: true`. Each service opts in via `metrics.enabled: true` in its values block. Default scrape path is `/actuator/prometheus` at 30s intervals. Extra labels for Prometheus discovery can be set via `metrics.serviceMonitor.labels`.

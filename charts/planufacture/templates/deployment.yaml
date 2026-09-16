@@ -1,6 +1,6 @@
 {{- range $key, $val := .Values.microServices }}
 {{- $context := merge (dict "key" $key) $ }}
-{{- if and (.service) (or (not (hasKey . "enabled")) .enabled) }}
+{{- if and (.service) (include "planufacture.componentEnabled" .) }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -120,7 +120,7 @@ spec:
               value: {{ $.Release.Namespace }}
             {{- end }}
             {{- end }}
-            {{- if eq $key "domain" }}
+            {{- if and (eq $key "domain") (include "planufacture.componentEnabled" $.Values.microServices.diomacConnector) }}
             - name: ADMIN_DIOMAC_API_KEY
               valueFrom:
                 secretKeyRef:

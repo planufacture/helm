@@ -75,6 +75,11 @@ microServices:
     metrics:
       enabled: true
   diomacConnector:
+    # Diomac is a per-customer integration. Set `enabled: false` for tenants
+    # that don't use it — the CronJob, the -diomac Secret (and so the
+    # `diomac.key` requirement) and domain's ADMIN_DIOMAC_API_KEY are all
+    # omitted, as is its mongo user when mongo.enabled is true.
+    enabled: true
     schedule: "*/5 5-20 * * *"
     timeZone: "Europe/Dublin"
     image:
@@ -248,6 +253,9 @@ volumeMounts: []
 #   mountPath: "/etc/foo"
 #   readOnly: true
 
+# Diomac platform API key, consumed by the diomac-connector CronJob and the
+# domain service. `diomac.key` is required only while
+# microServices.diomacConnector.enabled is true.
 diomac: {}
 metrics:
   enabled: false

@@ -41,7 +41,7 @@ spec:
               key: mongo-root-password
         {{- range $key, $val := .Values.microServices }}
         {{- $context := merge (dict "key" ($key | kebabcase)) $ }}
-        {{- if .mongo }}
+        {{- if and .mongo (include "planufacture.componentEnabled" .) }}
         - name: {{ $context.key | upper | replace "-" "_" }}_PASSWORD
           valueFrom:
             secretKeyRef:
@@ -62,7 +62,7 @@ spec:
           mongosh "mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@mongo:27017/admin?directConnection=true" --eval '
           const users = [];
           {{- range $key, $val := .Values.microServices }}
-          {{- if .mongo }}
+          {{- if and .mongo (include "planufacture.componentEnabled" .) }}
           users.push({
                user: "{{ .mongo.db }}",
                pwd: process.env.{{ .mongo.db | upper | replace "-" "_" }}_PASSWORD,

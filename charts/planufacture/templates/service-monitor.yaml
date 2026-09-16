@@ -1,7 +1,7 @@
 {{- if .Values.metrics.enabled }}
 {{- range $key, $val := .Values.microServices }}
 {{- $context := merge (dict "key" $key) $ }}
-{{- if and .service .metrics (or (not (hasKey . "enabled")) .enabled) }}
+{{- if and .service .metrics (include "planufacture.componentEnabled" .) }}
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:

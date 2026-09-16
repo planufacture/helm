@@ -79,6 +79,22 @@ needlessly roll every Deployment and StatefulSet.
 {{- end }}
 
 {{/*
+Whether a component is enabled.
+
+Components are on unless they opt out: a missing `enabled` key means enabled, so
+only an explicit `enabled: false` switches one off. Pass the component's own
+values map (e.g. .Values.microServices.diomacConnector) as the context. Returns
+a non-empty string when enabled, so callers can use it directly in an `if`.
+*/}}
+{{- define "planufacture.componentEnabled" -}}
+{{- if and (kindIs "map" .) (hasKey . "enabled") -}}
+{{- if .enabled -}}true{{- end -}}
+{{- else -}}
+true
+{{- end -}}
+{{- end }}
+
+{{/*
 Common labels
 */}}
 {{- define "planufacture.labels" -}}
