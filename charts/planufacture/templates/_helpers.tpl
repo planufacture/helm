@@ -79,6 +79,38 @@ needlessly roll every Deployment and StatefulSet.
 {{- end }}
 
 {{/*
+Whether a component is enabled.
+
+Components are on unless they opt out: a missing `enabled` key means enabled, so
+only an explicit `enabled: false` switches one off. Pass the component's own
+values map (e.g. .Values.microServices.diomacConnector) as the context. Returns
+a non-empty string when enabled, so callers can use it directly in an `if`.
+
+A context that is not a map counts as disabled — the component is absent, or an
+env has nulled it out (`diomacConnector:` with no body, which Helm's coalesce
+drops from the merged values entirely). That spelling is the obvious way to say
+"we don't run this", so it has to mean off rather than render a half-built
+resource that dies on a nil pointer.
+
+`enabled` is honoured as a string too: `--set-string` and quoted YAML both
+produce one, and every non-empty string is truthy in Go templates — "false"
+included, which would silently leave the component on.
+*/}}
+{{- define "planufacture.componentEnabled" -}}
+{{- if kindIs "map" . -}}
+{{- if hasKey . "enabled" -}}
+{{- $enabled := .enabled -}}
+{{- if kindIs "string" $enabled -}}
+{{- $enabled = not (has (lower $enabled) (list "" "false" "no" "off" "0")) -}}
+{{- end -}}
+{{- if $enabled -}}true{{- end -}}
+{{- else -}}
+true
+{{- end -}}
+{{- end -}}
+{{- end }}
+
+{{/*
 Common labels
 */}}
 {{- define "planufacture.labels" -}}

@@ -64,7 +64,7 @@ spec:
               ROOT_USER="${MONGO_INITDB_ROOT_USERNAME}"
               ROOT_PASS="${MONGO_INITDB_ROOT_PASSWORD}"
               {{- range $svcKey, $svcVal := .Values.microServices }}
-              {{- if .mongo }}
+              {{- if and .mongo (include "planufacture.componentEnabled" .) }}
               SAVE_{{ .mongo.db | upper | replace "-" "_" }}_PASSWORD="${{ .mongo.db | upper | replace "-" "_" }}_PASSWORD"
               {{- end }}
               {{- end }}
@@ -77,7 +77,7 @@ spec:
               unset MONGO_INITDB_ROOT_USERNAME MONGO_INITDB_ROOT_PASSWORD
               # Export saved passwords for mongosh process.env access
               {{- range $svcKey, $svcVal := .Values.microServices }}
-              {{- if .mongo }}
+              {{- if and .mongo (include "planufacture.componentEnabled" .) }}
               export SAVE_{{ .mongo.db | upper | replace "-" "_" }}_PASSWORD
               {{- end }}
               {{- end }}
@@ -125,7 +125,7 @@ spec:
               # Create per-microservice users
               mongosh "mongodb://${ROOT_USER}:${ROOT_PASS}@localhost:27017/admin?directConnection=true" --eval '
               {{- range $svcKey, $svcVal := .Values.microServices }}
-              {{- if .mongo }}
+              {{- if and .mongo (include "planufacture.componentEnabled" .) }}
               if (!db.getSiblingDB("admin").getUser("{{ .mongo.db }}")) {
                 db.getSiblingDB("admin").createUser({
                   user: "{{ .mongo.db }}",
@@ -153,7 +153,7 @@ spec:
                 key: mongo-root-password
           {{- range $svcKey, $svcVal := .Values.microServices }}
           {{- $svcContext := merge (dict "key" ($svcKey | kebabcase)) $ }}
-          {{- if .mongo }}
+          {{- if and .mongo (include "planufacture.componentEnabled" .) }}
           - name: {{ .mongo.db | upper | replace "-" "_" }}_PASSWORD
             valueFrom:
               secretKeyRef:
