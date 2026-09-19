@@ -45,7 +45,7 @@ microServices:
       existingSecretKey: domain-connection-string
     rabbit: true
     image:
-      tag: 0.0.717
+      tag: 0.0.721
     service:
       port: 9500
     metrics:
