@@ -50,6 +50,7 @@ jobs:
           NEW_VERSION: ${{ github.event.client_payload.version }}
           SERVICE_NAME: ${{ github.event.client_payload.service }}
           RELEASE_URL: ${{ github.event.client_payload.release_url }}
+          RELEASE_NOTES: ${{ github.event.client_payload.release_notes }}
         run: |
           BODY_FILE="$RUNNER_TEMP/pr-body.md"
 
@@ -65,8 +66,10 @@ jobs:
               echo "Latest release: $NEW_VERSION"
             fi
             echo
-            echo "Release notes for every version this PR covers are in the comments below."
-            echo
+            if [ -n "$RELEASE_NOTES" ]; then
+              echo "Release notes for every version this PR covers are in the comments below."
+              echo
+            fi
             echo "---"
             echo "_Automatically created by the Update Helm Chart Version workflow._"
           } > "$BODY_FILE"
@@ -85,6 +88,9 @@ jobs:
           base: main
 
       - name: Comment release notes on the pull request
+        # The chart change and the PR are already pushed by this point, so a
+        # comment the app lacks permission to post must not fail the run.
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           PR_NUMBER: ${{ steps.cpr.outputs.pull-request-number }}
@@ -122,21 +128,14 @@ jobs:
           {
             echo "$MARKER"
             if [ -n "$RELEASE_URL" ]; then
-              echo "## [$NEW_VERSION]($RELEASE_URL)"
+              echo "**[$NEW_VERSION]($RELEASE_URL)**"
             else
-              echo "## $NEW_VERSION"
+              echo "**$NEW_VERSION**"
             fi
             echo
-            # Demote headings in the notes so the version heading stays top
-            # level, leaving anything inside a fenced code block untouched.
-            printf '%s\n' "$RELEASE_NOTES" | awk '
-              /^[[:space:]]*```/ { fence = !fence; print; next }
-              !fence {
-                n = 0
-                while (substr($0, n + 1, 1) == "#") n++
-                if (n >= 1 && n <= 5 && substr($0, n + 1, 1) == " ") $0 = "#" $0
-              }
-              { print }'
+            # Verbatim: the notes are the payload, and rewriting their headings
+            # to sit under one of ours risks mangling whatever else is in them.
+            printf '%s\n' "$RELEASE_NOTES"
           } > "$COMMENT"
 
           gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body-file "$COMMENT"

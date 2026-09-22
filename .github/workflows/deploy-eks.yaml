@@ -95,11 +95,19 @@ jobs:
       - name: Deployment summary
         if: always()
         run: |
-          RELEASE_JSON=$(helm list --namespace "${NAMESPACE}" --filter "^${NAME}$" -o json 2>/dev/null || echo '[]')
-          CHART=$(echo "${RELEASE_JSON}" | jq -r '.[0].chart // "unknown"')
-          APP_VERSION=$(echo "${RELEASE_JSON}" | jq -r '.[0].app_version // "unknown"')
-          REVISION=$(echo "${RELEASE_JSON}" | jq -r '.[0].revision // "unknown"')
-          STATUS=$(echo "${RELEASE_JSON}" | jq -r '.[0].status // "unknown"')
+          # --all keeps the states that matter on the failure path: a run
+          # cancelled mid-upgrade leaves the release pending-upgrade, which
+          # helm's default filter hides. Errors go to the log rather than
+          # /dev/null so an empty table is never silently reported as a deploy.
+          RELEASE_JSON=$(helm list --all --namespace "${NAMESPACE}" --filter "^${NAME}$" -o json || echo '[]')
+          if ! printf '%s' "${RELEASE_JSON}" | jq -e . >/dev/null 2>&1; then
+            echo "helm list did not return usable JSON"
+            RELEASE_JSON='[]'
+          fi
+          CHART=$(printf '%s' "${RELEASE_JSON}" | jq -r '.[0].chart // "unknown"')
+          APP_VERSION=$(printf '%s' "${RELEASE_JSON}" | jq -r '.[0].app_version // "unknown"')
+          REVISION=$(printf '%s' "${RELEASE_JSON}" | jq -r '.[0].revision // "unknown"')
+          STATUS=$(printf '%s' "${RELEASE_JSON}" | jq -r '.[0].status // "unknown"')
           {
             if [ "${JOB_STATUS}" = "success" ]; then
               echo "## Deployed to \`${ENVIRONMENT}\`"
