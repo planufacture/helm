@@ -47,72 +47,25 @@ jobs:
       - name: Build pull request body
         id: body
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
           NEW_VERSION: ${{ github.event.client_payload.version }}
           SERVICE_NAME: ${{ github.event.client_payload.service }}
-          SOURCE_REPO: ${{ github.event.client_payload.repository }}
           RELEASE_URL: ${{ github.event.client_payload.release_url }}
-          RELEASE_NOTES: ${{ github.event.client_payload.release_notes }}
-          BRANCH: update-${{ github.event.client_payload.service }}-version
         run: |
           BODY_FILE="$RUNNER_TEMP/pr-body.md"
 
-          # Release sections already accumulated on this branch's open PR. The
-          # branch is reused until the PR merges, so without this the notes from
-          # earlier releases would be overwritten by the latest one. Only an open
-          # PR counts: a closed one was a release deliberately dropped.
-          EXISTING_BODY=$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$BRANCH" \
-            --state open --json body --jq '.[0].body // ""' 2>/dev/null || true)
-          PREVIOUS=$(printf '%s\n' "$EXISTING_BODY" | tr -d '\r' \
-            | awk '/<!-- releases:start -->/{f=1; next} /<!-- releases:end -->/{f=0} f')
-
-          # Drop any section for this same version, so a re-dispatched tag
-          # replaces its entry rather than appending a duplicate.
-          PREVIOUS=$(printf '%s\n' "$PREVIOUS" | awk -v v="$NEW_VERSION" '
-            /^## / { skip = (index($0, "## [" v "]") == 1 || $0 == "## " v) }
-            !skip')
-
-          # Keep the accumulated history inside the 65536 character body cap.
-          # Trimming by whole lines also avoids cutting a multi-byte character
-          # in half, and leaves the end marker and footer below intact.
-          if [ "$(printf '%s' "$PREVIOUS" | wc -c)" -gt 40000 ]; then
-            PREVIOUS=$(printf '%s\n' "$PREVIOUS" | head -c 40000 | sed '$d')
-            TRIMMED="_Older release notes trimmed; see the linked releases._"
-            PREVIOUS="$PREVIOUS"$'\n\n'"$TRIMMED"
-          fi
-
+          # The branch is reused until the PR merges and this body is rewritten
+          # on every release, so it only describes the current state. The notes
+          # for each version go in comments, which nothing here overwrites.
           {
             echo "Updates the \`$SERVICE_NAME\` microservice image tag to \`${NEW_VERSION#v}\`."
             echo
-            echo "<!-- releases:start -->"
-            echo
             if [ -n "$RELEASE_URL" ]; then
-              echo "## [$NEW_VERSION]($RELEASE_URL)"
+              echo "Latest release: [$NEW_VERSION]($RELEASE_URL)"
             else
-              echo "## $NEW_VERSION"
+              echo "Latest release: $NEW_VERSION"
             fi
             echo
-            if [ -n "$RELEASE_NOTES" ]; then
-              # Demote headings in the notes so the version heading stays top
-              # level, leaving anything inside a fenced code block untouched.
-              printf '%s\n' "$RELEASE_NOTES" | awk '
-                /^[[:space:]]*```/ { fence = !fence; print; next }
-                !fence {
-                  n = 0
-                  while (substr($0, n + 1, 1) == "#") n++
-                  if (n >= 1 && n <= 5 && substr($0, n + 1, 1) == " ") $0 = "#" $0
-                }
-                { print }'
-            elif [ -n "$SOURCE_REPO" ]; then
-              echo "_No release notes were supplied by \`$SOURCE_REPO\`._"
-            else
-              echo "_No release notes were supplied by the releasing repository._"
-            fi
-            echo
-            if [ -n "$PREVIOUS" ]; then
-              printf '%s\n' "$PREVIOUS"
-            fi
-            echo "<!-- releases:end -->"
+            echo "Release notes for every version this PR covers are in the comments below."
             echo
             echo "---"
             echo "_Automatically created by the Update Helm Chart Version workflow._"
@@ -121,6 +74,7 @@ jobs:
           echo "path=$BODY_FILE" >> "$GITHUB_OUTPUT"
 
       - name: Create Pull Request
+        id: cpr
         uses: peter-evans/create-pull-request@v8
         with:
           token: ${{ steps.app-token.outputs.token }}
@@ -129,6 +83,63 @@ jobs:
           body-path: ${{ steps.body.outputs.path }}
           branch: update-${{ github.event.client_payload.service }}-version
           base: main
+
+      - name: Comment release notes on the pull request
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          PR_NUMBER: ${{ steps.cpr.outputs.pull-request-number }}
+          NEW_VERSION: ${{ github.event.client_payload.version }}
+          SOURCE_REPO: ${{ github.event.client_payload.repository }}
+          RELEASE_URL: ${{ github.event.client_payload.release_url }}
+          RELEASE_NOTES: ${{ github.event.client_payload.release_notes }}
+          BRANCH: update-${{ github.event.client_payload.service }}-version
+        run: |
+          PR="$PR_NUMBER"
+          if [ -z "$PR" ]; then
+            # No diff to push means no new PR, but an open one may still exist
+            PR=$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$BRANCH" \
+              --state open --json number --jq '.[0].number // ""')
+          fi
+          if [ -z "$PR" ]; then
+            echo "No open pull request to comment on"
+            exit 0
+          fi
+
+          if [ -z "$RELEASE_NOTES" ]; then
+            echo "No release notes in the dispatch payload from ${SOURCE_REPO:-the releasing repository}"
+            exit 0
+          fi
+
+          # A re-dispatched tag must not comment twice
+          MARKER="<!-- release-notes:${NEW_VERSION} -->"
+          if gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json comments \
+               --jq '.comments[].body' | grep -qF "$MARKER"; then
+            echo "Release notes for $NEW_VERSION are already on PR #$PR"
+            exit 0
+          fi
+
+          COMMENT="$RUNNER_TEMP/comment.md"
+          {
+            echo "$MARKER"
+            if [ -n "$RELEASE_URL" ]; then
+              echo "## [$NEW_VERSION]($RELEASE_URL)"
+            else
+              echo "## $NEW_VERSION"
+            fi
+            echo
+            # Demote headings in the notes so the version heading stays top
+            # level, leaving anything inside a fenced code block untouched.
+            printf '%s\n' "$RELEASE_NOTES" | awk '
+              /^[[:space:]]*```/ { fence = !fence; print; next }
+              !fence {
+                n = 0
+                while (substr($0, n + 1, 1) == "#") n++
+                if (n >= 1 && n <= 5 && substr($0, n + 1, 1) == " ") $0 = "#" $0
+              }
+              { print }'
+          } > "$COMMENT"
+
+          gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body-file "$COMMENT"
 
 # Enable when upgraded to GitHub teams
 #      - name: Auto-merge if checks pass
