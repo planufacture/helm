@@ -120,7 +120,10 @@ jobs:
               echo ""
             fi
             echo "| Field | Value |"
-            echo "| --- | --- |"
+            # A single dash: HELM_VALUES is a multi-line secret and a bare ---
+            # line in it makes GitHub mask every literal --- as ***, which
+            # destroys the delimiter row and stops the table rendering.
+            echo "| - | - |"
             echo "| Environment | \`${ENVIRONMENT}\` |"
             echo "| Cluster | \`${CLUSTER_NAME}\` |"
             echo "| Namespace | \`${NAMESPACE}\` |"
