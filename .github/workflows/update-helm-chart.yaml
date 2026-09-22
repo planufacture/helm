@@ -57,12 +57,29 @@ jobs:
         run: |
           BODY_FILE="$RUNNER_TEMP/pr-body.md"
 
-          # Release sections already accumulated on this branch's open PR, if any.
-          # The branch is reused until the PR is merged, so without this the notes
-          # from earlier releases would be overwritten by the latest one.
-          EXISTING_BODY=$(gh pr view "$BRANCH" --repo "$GITHUB_REPOSITORY" --json body --jq '.body' 2>/dev/null || true)
-          PREVIOUS=$(printf '%s\n' "$EXISTING_BODY" \
+          # Release sections already accumulated on this branch's open PR. The
+          # branch is reused until the PR merges, so without this the notes from
+          # earlier releases would be overwritten by the latest one. Only an open
+          # PR counts: a closed one was a release deliberately dropped.
+          EXISTING_BODY=$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$BRANCH" \
+            --state open --json body --jq '.[0].body // ""' 2>/dev/null || true)
+          PREVIOUS=$(printf '%s\n' "$EXISTING_BODY" | tr -d '\r' \
             | awk '/<!-- releases:start -->/{f=1; next} /<!-- releases:end -->/{f=0} f')
+
+          # Drop any section for this same version, so a re-dispatched tag
+          # replaces its entry rather than appending a duplicate.
+          PREVIOUS=$(printf '%s\n' "$PREVIOUS" | awk -v v="$NEW_VERSION" '
+            /^## / { skip = (index($0, "## [" v "]") == 1 || $0 == "## " v) }
+            !skip')
+
+          # Keep the accumulated history inside the 65536 character body cap.
+          # Trimming by whole lines also avoids cutting a multi-byte character
+          # in half, and leaves the end marker and footer below intact.
+          if [ "$(printf '%s' "$PREVIOUS" | wc -c)" -gt 40000 ]; then
+            PREVIOUS=$(printf '%s\n' "$PREVIOUS" | head -c 40000 | sed '$d')
+            TRIMMED="_Older release notes trimmed; see the linked releases._"
+            PREVIOUS="$PREVIOUS"$'\n\n'"$TRIMMED"
+          fi
 
           {
             echo "Updates the \`$SERVICE_NAME\` microservice image tag to \`${NEW_VERSION#v}\`."
@@ -76,8 +93,16 @@ jobs:
             fi
             echo
             if [ -n "$RELEASE_NOTES" ]; then
-              # Demote headings in the notes so the version heading stays top level
-              printf '%s\n' "$RELEASE_NOTES" | sed -E 's/^(#{1,5}) /#\1 /'
+              # Demote headings in the notes so the version heading stays top
+              # level, leaving anything inside a fenced code block untouched.
+              printf '%s\n' "$RELEASE_NOTES" | awk '
+                /^[[:space:]]*```/ { fence = !fence; print; next }
+                !fence {
+                  n = 0
+                  while (substr($0, n + 1, 1) == "#") n++
+                  if (n >= 1 && n <= 5 && substr($0, n + 1, 1) == " ") $0 = "#" $0
+                }
+                { print }'
             elif [ -n "$SOURCE_REPO" ]; then
               echo "_No release notes were supplied by \`$SOURCE_REPO\`._"
             else
@@ -92,13 +117,6 @@ jobs:
             echo "---"
             echo "_Automatically created by the Update Helm Chart Version workflow._"
           } > "$BODY_FILE"
-
-          # A PR body is capped at 65536 characters
-          if [ "$(wc -c < "$BODY_FILE")" -gt 60000 ]; then
-            head -c 60000 "$BODY_FILE" > "$BODY_FILE.tmp"
-            printf '\n\n_Body truncated; see the linked releases for the full notes._\n' >> "$BODY_FILE.tmp"
-            mv "$BODY_FILE.tmp" "$BODY_FILE"
-          fi
 
           echo "path=$BODY_FILE" >> "$GITHUB_OUTPUT"
 

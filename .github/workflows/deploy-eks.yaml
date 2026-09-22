@@ -101,8 +101,16 @@ jobs:
           REVISION=$(echo "${RELEASE_JSON}" | jq -r '.[0].revision // "unknown"')
           STATUS=$(echo "${RELEASE_JSON}" | jq -r '.[0].status // "unknown"')
           {
-            echo "## Deployed to \`${ENVIRONMENT}\`"
-            echo ""
+            if [ "${JOB_STATUS}" = "success" ]; then
+              echo "## Deployed to \`${ENVIRONMENT}\`"
+              echo ""
+            else
+              echo "## Deploy to \`${ENVIRONMENT}\` ${JOB_STATUS}"
+              echo ""
+              echo "The release details below are whatever is currently in the cluster,"
+              echo "which may predate this run."
+              echo ""
+            fi
             echo "| Field | Value |"
             echo "| --- | --- |"
             echo "| Environment | \`${ENVIRONMENT}\` |"
@@ -112,10 +120,12 @@ jobs:
             echo "| Chart | \`${CHART}\` |"
             echo "| App version | \`${APP_VERSION}\` |"
             echo "| Helm revision | \`${REVISION}\` |"
-            echo "| Status | \`${STATUS}\` |"
+            echo "| Release status | \`${STATUS}\` |"
+            echo "| Job result | \`${JOB_STATUS}\` |"
             echo "| Triggered by | \`${{ github.event_name }}\` |"
           } >> "$GITHUB_STEP_SUMMARY"
         env:
           NAMESPACE: ${{ vars.NAMESPACE }}
           NAME: ${{ vars.NAME }}
           CLUSTER_NAME: ${{ vars.CLUSTER_NAME }}
+          JOB_STATUS: ${{ job.status }}
