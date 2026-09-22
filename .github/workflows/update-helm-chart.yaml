@@ -1,5 +1,6 @@
 ---
 name: Update Helm Chart Version
+run-name: Update ${{ github.event.client_payload.service }} to ${{ github.event.client_payload.version }}
 
 on:
   repository_dispatch:
@@ -43,18 +44,101 @@ jobs:
             sed -i "s/appVersion: .*/appVersion: \"$CLEAN_VERSION\"/" charts/planufacture/Chart.yaml
           fi
 
+      - name: Build pull request body
+        id: body
+        env:
+          NEW_VERSION: ${{ github.event.client_payload.version }}
+          SERVICE_NAME: ${{ github.event.client_payload.service }}
+          RELEASE_URL: ${{ github.event.client_payload.release_url }}
+          RELEASE_NOTES: ${{ github.event.client_payload.release_notes }}
+        run: |
+          BODY_FILE="$RUNNER_TEMP/pr-body.md"
+
+          # The branch is reused until the PR merges and this body is rewritten
+          # on every release, so it only describes the current state. The notes
+          # for each version go in comments, which nothing here overwrites.
+          {
+            echo "Updates the \`$SERVICE_NAME\` microservice image tag to \`${NEW_VERSION#v}\`."
+            echo
+            if [ -n "$RELEASE_URL" ]; then
+              echo "Latest release: [$NEW_VERSION]($RELEASE_URL)"
+            else
+              echo "Latest release: $NEW_VERSION"
+            fi
+            echo
+            if [ -n "$RELEASE_NOTES" ]; then
+              echo "Release notes for every version this PR covers are in the comments below."
+              echo
+            fi
+            echo "---"
+            echo "_Automatically created by the Update Helm Chart Version workflow._"
+          } > "$BODY_FILE"
+
+          echo "path=$BODY_FILE" >> "$GITHUB_OUTPUT"
+
       - name: Create Pull Request
+        id: cpr
         uses: peter-evans/create-pull-request@v8
         with:
           token: ${{ steps.app-token.outputs.token }}
           commit-message: "chore: update ${{ github.event.client_payload.service }} version to ${{ github.event.client_payload.version }}"
           title: "chore: update ${{ github.event.client_payload.service }} version to ${{ github.event.client_payload.version }}"
-          body: |
-            Updates the ${{ github.event.client_payload.service }} microservice to version ${{ github.event.client_payload.version }}.
-
-            This PR was automatically created by a GitHub Action.
+          body-path: ${{ steps.body.outputs.path }}
           branch: update-${{ github.event.client_payload.service }}-version
           base: main
+
+      - name: Comment release notes on the pull request
+        # The chart change and the PR are already pushed by this point, so a
+        # comment the app lacks permission to post must not fail the run.
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          PR_NUMBER: ${{ steps.cpr.outputs.pull-request-number }}
+          NEW_VERSION: ${{ github.event.client_payload.version }}
+          SOURCE_REPO: ${{ github.event.client_payload.repository }}
+          RELEASE_URL: ${{ github.event.client_payload.release_url }}
+          RELEASE_NOTES: ${{ github.event.client_payload.release_notes }}
+          BRANCH: update-${{ github.event.client_payload.service }}-version
+        run: |
+          PR="$PR_NUMBER"
+          if [ -z "$PR" ]; then
+            # No diff to push means no new PR, but an open one may still exist
+            PR=$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$BRANCH" \
+              --state open --json number --jq '.[0].number // ""')
+          fi
+          if [ -z "$PR" ]; then
+            echo "No open pull request to comment on"
+            exit 0
+          fi
+
+          if [ -z "$RELEASE_NOTES" ]; then
+            echo "No release notes in the dispatch payload from ${SOURCE_REPO:-the releasing repository}"
+            exit 0
+          fi
+
+          # A re-dispatched tag must not comment twice
+          MARKER="<!-- release-notes:${NEW_VERSION} -->"
+          if gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json comments \
+               --jq '.comments[].body' | grep -qF "$MARKER"; then
+            echo "Release notes for $NEW_VERSION are already on PR #$PR"
+            exit 0
+          fi
+
+          COMMENT="$RUNNER_TEMP/comment.md"
+          {
+            echo "$MARKER"
+            if [ -n "$RELEASE_URL" ]; then
+              echo "**[$NEW_VERSION]($RELEASE_URL)**"
+            else
+              echo "**$NEW_VERSION**"
+            fi
+            echo
+            # Verbatim: the notes are the payload, and rewriting their headings
+            # to sit under one of ours risks mangling whatever else is in them.
+            printf '%s\n' "$RELEASE_NOTES"
+          } > "$COMMENT"
+
+          gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body-file "$COMMENT"
 
 # Enable when upgraded to GitHub teams
 #      - name: Auto-merge if checks pass
