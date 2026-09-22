@@ -1,4 +1,5 @@
 name: Deploy to EKS
+run-name: Deploy to EKS - ${{ github.event.inputs.environment || 'dev' }}
 
 on:
   workflow_run:
@@ -21,8 +22,23 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
     environment: ${{ github.event.inputs.environment || 'dev' }}
+    env:
+      ENVIRONMENT: ${{ github.event.inputs.environment || 'dev' }}
 
     steps:
+      - name: Show deployment target
+        run: |
+          echo "::notice title=Deploy target::${ENVIRONMENT} (namespace ${NAMESPACE}, release ${NAME}, cluster ${CLUSTER_NAME})"
+          echo "Environment : ${ENVIRONMENT}"
+          echo "Cluster     : ${CLUSTER_NAME}"
+          echo "Namespace   : ${NAMESPACE}"
+          echo "Release     : ${NAME}"
+          echo "Triggered by: ${{ github.event_name }}"
+        env:
+          NAMESPACE: ${{ vars.NAMESPACE }}
+          NAME: ${{ vars.NAME }}
+          CLUSTER_NAME: ${{ vars.CLUSTER_NAME }}
+
       - name: Checkout
         uses: actions/checkout@v7.0.1
         with:
@@ -65,8 +81,7 @@ jobs:
 
       - name: Deploy to Kubernetes
         run: |
-          echo ${NAME} to ${NAMESPACE}
-          echo "Deploying planufacture/planufacture to ${{ github.event.inputs.environment || 'dev' }}"
+          echo "Deploying planufacture/planufacture as ${NAME} to ${ENVIRONMENT} (namespace ${NAMESPACE})"
           helm upgrade --install ${NAME} planufacture/planufacture \
             --namespace "${NAMESPACE}" \
             -f values.yaml \
@@ -76,3 +91,31 @@ jobs:
         env:
           NAMESPACE: ${{ vars.NAMESPACE }}
           NAME: ${{ vars.NAME }}
+
+      - name: Deployment summary
+        if: always()
+        run: |
+          RELEASE_JSON=$(helm list --namespace "${NAMESPACE}" --filter "^${NAME}$" -o json 2>/dev/null || echo '[]')
+          CHART=$(echo "${RELEASE_JSON}" | jq -r '.[0].chart // "unknown"')
+          APP_VERSION=$(echo "${RELEASE_JSON}" | jq -r '.[0].app_version // "unknown"')
+          REVISION=$(echo "${RELEASE_JSON}" | jq -r '.[0].revision // "unknown"')
+          STATUS=$(echo "${RELEASE_JSON}" | jq -r '.[0].status // "unknown"')
+          {
+            echo "## Deployed to \`${ENVIRONMENT}\`"
+            echo ""
+            echo "| Field | Value |"
+            echo "| --- | --- |"
+            echo "| Environment | \`${ENVIRONMENT}\` |"
+            echo "| Cluster | \`${CLUSTER_NAME}\` |"
+            echo "| Namespace | \`${NAMESPACE}\` |"
+            echo "| Release | \`${NAME}\` |"
+            echo "| Chart | \`${CHART}\` |"
+            echo "| App version | \`${APP_VERSION}\` |"
+            echo "| Helm revision | \`${REVISION}\` |"
+            echo "| Status | \`${STATUS}\` |"
+            echo "| Triggered by | \`${{ github.event_name }}\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+        env:
+          NAMESPACE: ${{ vars.NAMESPACE }}
+          NAME: ${{ vars.NAME }}
+          CLUSTER_NAME: ${{ vars.CLUSTER_NAME }}

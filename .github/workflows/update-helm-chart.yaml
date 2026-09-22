@@ -1,5 +1,6 @@
 ---
 name: Update Helm Chart Version
+run-name: Update ${{ github.event.client_payload.service }} to ${{ github.event.client_payload.version }}
 
 on:
   repository_dispatch:
@@ -43,16 +44,71 @@ jobs:
             sed -i "s/appVersion: .*/appVersion: \"$CLEAN_VERSION\"/" charts/planufacture/Chart.yaml
           fi
 
+      - name: Build pull request body
+        id: body
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          NEW_VERSION: ${{ github.event.client_payload.version }}
+          SERVICE_NAME: ${{ github.event.client_payload.service }}
+          SOURCE_REPO: ${{ github.event.client_payload.repository }}
+          RELEASE_URL: ${{ github.event.client_payload.release_url }}
+          RELEASE_NOTES: ${{ github.event.client_payload.release_notes }}
+          BRANCH: update-${{ github.event.client_payload.service }}-version
+        run: |
+          BODY_FILE="$RUNNER_TEMP/pr-body.md"
+
+          # Release sections already accumulated on this branch's open PR, if any.
+          # The branch is reused until the PR is merged, so without this the notes
+          # from earlier releases would be overwritten by the latest one.
+          EXISTING_BODY=$(gh pr view "$BRANCH" --repo "$GITHUB_REPOSITORY" --json body --jq '.body' 2>/dev/null || true)
+          PREVIOUS=$(printf '%s\n' "$EXISTING_BODY" \
+            | awk '/<!-- releases:start -->/{f=1; next} /<!-- releases:end -->/{f=0} f')
+
+          {
+            echo "Updates the \`$SERVICE_NAME\` microservice image tag to \`${NEW_VERSION#v}\`."
+            echo
+            echo "<!-- releases:start -->"
+            echo
+            if [ -n "$RELEASE_URL" ]; then
+              echo "## [$NEW_VERSION]($RELEASE_URL)"
+            else
+              echo "## $NEW_VERSION"
+            fi
+            echo
+            if [ -n "$RELEASE_NOTES" ]; then
+              # Demote headings in the notes so the version heading stays top level
+              printf '%s\n' "$RELEASE_NOTES" | sed -E 's/^(#{1,5}) /#\1 /'
+            elif [ -n "$SOURCE_REPO" ]; then
+              echo "_No release notes were supplied by \`$SOURCE_REPO\`._"
+            else
+              echo "_No release notes were supplied by the releasing repository._"
+            fi
+            echo
+            if [ -n "$PREVIOUS" ]; then
+              printf '%s\n' "$PREVIOUS"
+            fi
+            echo "<!-- releases:end -->"
+            echo
+            echo "---"
+            echo "_Automatically created by the Update Helm Chart Version workflow._"
+          } > "$BODY_FILE"
+
+          # A PR body is capped at 65536 characters
+          if [ "$(wc -c < "$BODY_FILE")" -gt 60000 ]; then
+            head -c 60000 "$BODY_FILE" > "$BODY_FILE.tmp"
+            printf '\n\n_Body truncated; see the linked releases for the full notes._\n' >> "$BODY_FILE.tmp"
+            mv "$BODY_FILE.tmp" "$BODY_FILE"
+          fi
+
+          echo "path=$BODY_FILE" >> "$GITHUB_OUTPUT"
+
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v8
         with:
           token: ${{ steps.app-token.outputs.token }}
           commit-message: "chore: update ${{ github.event.client_payload.service }} version to ${{ github.event.client_payload.version }}"
           title: "chore: update ${{ github.event.client_payload.service }} version to ${{ github.event.client_payload.version }}"
-          body: |
-            Updates the ${{ github.event.client_payload.service }} microservice to version ${{ github.event.client_payload.version }}.
-
-            This PR was automatically created by a GitHub Action.
+          body-path: ${{ steps.body.outputs.path }}
           branch: update-${{ github.event.client_payload.service }}-version
           base: main
 
