@@ -120,7 +120,11 @@ jobs:
               echo ""
             fi
             echo "| Field | Value |"
-            echo "| --- | --- |"
+            # Not ---: HELM_VALUES is a multi-line secret and a bare --- line
+            # in it makes GitHub mask every literal --- as ***, which destroys
+            # the delimiter row and stops the table rendering. :-- is valid GFM
+            # and is not a line any values file would contain.
+            echo "| :-- | :-- |"
             echo "| Environment | \`${ENVIRONMENT}\` |"
             echo "| Cluster | \`${CLUSTER_NAME}\` |"
             echo "| Namespace | \`${NAMESPACE}\` |"
