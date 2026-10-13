@@ -191,10 +191,10 @@ spec:
             # silently ignores the old name (falling back to "spring:session"
             # and hitting NOPERM), and Boot 3 ignores the new one. Drop the old
             # name once every redis-enabled service is on Boot 4.
-            - name: SPRING_SESSION_REDIS_NAMESPACE
+            {{- range $envName := list "SPRING_SESSION_REDIS_NAMESPACE" "SPRING_SESSION_DATA_REDIS_NAMESPACE" }}
+            - name: {{ $envName }}
               value: "{{ $.Release.Namespace }}:spring:session"
-            - name: SPRING_SESSION_DATA_REDIS_NAMESPACE
-              value: "{{ $.Release.Namespace }}:spring:session"
+            {{- end }}
             {{- end }}
             {{- with .env }}
             {{- toYaml . | nindent 12 }}
