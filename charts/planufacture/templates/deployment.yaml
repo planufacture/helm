@@ -182,7 +182,14 @@ spec:
             # Spring Session Redis keys default to "spring:session:*". The
             # tenant ACL user on the shared redis only permits "<namespace>:*",
             # so prefix the session namespace with the release namespace.
+            # Both names are set: SPRING_SESSION_REDIS_NAMESPACE is the Boot 3
+            # name, SPRING_SESSION_DATA_REDIS_NAMESPACE the Boot 4 one. Boot 4
+            # silently ignores the old name (falling back to "spring:session"
+            # and hitting NOPERM), and Boot 3 ignores the new one. Drop the old
+            # name once every redis-enabled service is on Boot 4.
             - name: SPRING_SESSION_REDIS_NAMESPACE
+              value: "{{ $.Release.Namespace }}:spring:session"
+            - name: SPRING_SESSION_DATA_REDIS_NAMESPACE
               value: "{{ $.Release.Namespace }}:spring:session"
             {{- end }}
             {{- with .env }}
