@@ -125,14 +125,14 @@ spec:
                 - name: SPRING_RABBITMQ_VIRTUAL_HOST
                   value: {{ $.Release.Namespace }}
                 {{- end }}
-                {{- with .env }}
+                {{- with $.Values.microServices.diomacConnector.env }}
                 {{- toYaml . | nindent 16 }}
                 {{- end }}
-              {{- with .volumeMounts }}
+              {{- with $.Values.microServices.diomacConnector.volumeMounts }}
               volumeMounts:
               {{- toYaml . | nindent 14 }}
               {{- end }}
-              {{- with .volumes }}
+              {{- with $.Values.microServices.diomacConnector.volumes }}
           volumes:
           {{- toYaml . | nindent 10 }}
           {{- end }}
