@@ -1,4 +1,5 @@
 {{- if include "planufacture.componentEnabled" .Values.microServices.diomacConnector }}
+{{- $dc := $.Values.microServices.diomacConnector }}
 apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -6,8 +7,8 @@ metadata:
   labels:
     {{- include "planufacture.labels" (merge (dict "versionKey" "diomacConnector") $) | nindent 4 }}
 spec:
-  schedule: {{ $.Values.microServices.diomacConnector.schedule | quote }}
-  timeZone: {{ $.Values.microServices.diomacConnector.timeZone | quote }}
+  schedule: {{ $dc.schedule | quote }}
+  timeZone: {{ $dc.timeZone | quote }}
   concurrencyPolicy: Forbid
   jobTemplate:
     spec:
@@ -29,8 +30,8 @@ spec:
           {{- end }}
           containers:
             {{- $image := dict }}
-            {{- if kindIs "map" $.Values.microServices.diomacConnector.image }}
-            {{- $image = $.Values.microServices.diomacConnector.image }}
+            {{- if kindIs "map" $dc.image }}
+            {{- $image = $dc.image }}
             {{- end }}
             - name: diomac-connector
               image: "{{ $.Values.imageRegistry }}/planufacture/diomac-connector:{{ $image.tag | default $.Chart.AppVersion }}"
@@ -40,6 +41,8 @@ spec:
                 capabilities:
                   drop:
                     - ALL
+              resources:
+                {{- toYaml (default $.Values.resources $dc.resources) | nindent 16 }}
               env:
                 - name: SPRING_PROFILES_ACTIVE
                   valueFrom:
@@ -53,14 +56,14 @@ spec:
                 - name: {{ $envName }}
                   valueFrom:
                     secretKeyRef:
-                      {{- if $.Values.microServices.diomacConnector.mongo.existingSecret }}
-                      name: {{ $.Values.microServices.diomacConnector.mongo.existingSecret }}
-                      key: {{ $.Values.microServices.diomacConnector.mongo.existingSecretKey | default "mongo-uri" }}
+                      {{- if $dc.mongo.existingSecret }}
+                      name: {{ $dc.mongo.existingSecret }}
+                      key: {{ $dc.mongo.existingSecretKey | default "mongo-uri" }}
                       {{- else if $.Values.mongo.enabled }}
                       name: {{ include "planufacture.fullname" $ }}-diomac-connector
                       key: mongo-uri
                       {{- else }}
-                      {{ required "microServices.diomacConnector.mongo.existingSecret is required when mongo.enabled is false" $.Values.microServices.diomacConnector.mongo.existingSecret }}
+                      {{ required "microServices.diomacConnector.mongo.existingSecret is required when mongo.enabled is false" $dc.mongo.existingSecret }}
                       {{- end }}
                 {{- end }}
                 - name: DIOMAC_API_KEY
@@ -125,14 +128,14 @@ spec:
                 - name: SPRING_RABBITMQ_VIRTUAL_HOST
                   value: {{ $.Release.Namespace }}
                 {{- end }}
-                {{- with $.Values.microServices.diomacConnector.env }}
+                {{- with $dc.env }}
                 {{- toYaml . | nindent 16 }}
                 {{- end }}
-              {{- with $.Values.microServices.diomacConnector.volumeMounts }}
+              {{- with $dc.volumeMounts }}
               volumeMounts:
               {{- toYaml . | nindent 14 }}
               {{- end }}
-              {{- with $.Values.microServices.diomacConnector.volumes }}
+              {{- with $dc.volumes }}
           volumes:
           {{- toYaml . | nindent 10 }}
           {{- end }}
