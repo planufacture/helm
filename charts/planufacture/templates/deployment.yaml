@@ -64,18 +64,22 @@ spec:
             - name: SPRING_CLOUD_CONFIG_LABEL
               value: {{ required "A valid .Values.application.environment is required" $.Values.application.environment }}
             {{- if .mongo }}
-            - name: SPRING_DATA_MONGODB_URI
+            {{- $mongo := .mongo }}
+            {{- /* Boot 3 reads SPRING_DATA_MONGODB_URI, Boot 4 reads SPRING_MONGODB_URI; drop the old name once all services are on Boot 4 */}}
+            {{- range $envName := list "SPRING_DATA_MONGODB_URI" "SPRING_MONGODB_URI" }}
+            - name: {{ $envName }}
               valueFrom:
                 secretKeyRef:
-                  {{- if .mongo.existingSecret }}
-                  name: {{ .mongo.existingSecret }}
-                  key: {{ .mongo.existingSecretKey | default "mongo-uri" }}
+                  {{- if $mongo.existingSecret }}
+                  name: {{ $mongo.existingSecret }}
+                  key: {{ $mongo.existingSecretKey | default "mongo-uri" }}
                   {{- else if $.Values.mongo.enabled }}
                   name: {{ include "planufacture.fullname" $context }}
                   key: mongo-uri
                   {{- else }}
-                  {{ required (printf "microServices.%s.mongo.existingSecret is required when mongo.enabled is false" $key) .mongo.existingSecret }}
+                  {{ required (printf "microServices.%s.mongo.existingSecret is required when mongo.enabled is false" $key) $mongo.existingSecret }}
                   {{- end }}
+            {{- end }}
             {{- end }}
             {{- if .rabbit }}
             {{- if $.Values.rabbit.existingSecret }}
