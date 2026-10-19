@@ -11,15 +11,20 @@
 {{- $minute := first $fields }}
 {{- if and (ne $dc.staggerSchedule false) (regexMatch "^\\*/[0-9]+$" $minute) }}
 {{- $step := atoi (trimPrefix "*/" $minute) }}
-{{- if gt $step 1 }}
+{{- if and (gt $step 1) (lt $step 60) }}
 {{- $offset := mod (atoi (adler32sum $.Release.Namespace)) $step }}
-{{- if kindIs "float64" $dc.scheduleOffset }}
-{{- $offset = mod (int $dc.scheduleOffset) $step }}
-{{- else if kindIs "int" $dc.scheduleOffset }}
-{{- $offset = mod $dc.scheduleOffset $step }}
+{{- if not (kindIs "invalid" $dc.scheduleOffset) }}
+{{- $offset = int $dc.scheduleOffset }}
+{{- if or (lt $offset 0) (ge $offset $step) }}
+{{- fail (printf "microServices.diomacConnector.scheduleOffset must be between 0 and %d" (sub $step 1)) }}
+{{- end }}
 {{- end }}
 {{- $schedule = printf "%d-59/%d %s" $offset $step (rest $fields | join " ") }}
 {{- end }}
+{{- end }}
+{{- $jitter := int $dc.startJitterSeconds }}
+{{- if lt $jitter 0 }}
+{{- fail "microServices.diomacConnector.startJitterSeconds must not be negative" }}
 {{- end }}
 apiVersion: batch/v1
 kind: CronJob
@@ -43,13 +48,13 @@ spec:
             runAsUser: 999
             fsGroup: 999
           restartPolicy: Never
-          {{- if or $.Values.mongo.enabled (gt (int $dc.startJitterSeconds) 0) }}
+          {{- if or $.Values.mongo.enabled (gt $jitter 0) }}
           initContainers:
-            {{- if gt (int $dc.startJitterSeconds) 0 }}
+            {{- if gt $jitter 0 }}
             # Random delay to spread tenants that share a schedule slot
             - name: start-jitter
               image: "{{ $.Values.busybox.image.repository }}:{{ $.Values.busybox.image.tag }}"
-              command: ['sh', '-c', 'sleep $((RANDOM % {{ int $dc.startJitterSeconds }}))']
+              command: ['sh', '-c', 'sleep $((RANDOM % {{ $jitter }}))']
               securityContext:
                 allowPrivilegeEscalation: false
                 capabilities:
