@@ -1,5 +1,31 @@
 {{- if include "planufacture.componentEnabled" .Values.microServices.diomacConnector }}
 {{- $dc := $.Values.microServices.diomacConnector }}
+{{- /*
+  Every tenant renders the same schedule, so without staggering all connectors
+  hit mongo in the same minute. For a "every N minutes" minute field, rewrite it to
+  "<offset>-59/N" with an offset derived from the namespace (stable across
+  upgrades) or pinned via scheduleOffset.
+*/}}
+{{- $schedule := $dc.schedule }}
+{{- $fields := regexSplit "\\s+" (trim $schedule) -1 }}
+{{- $minute := first $fields }}
+{{- if and (ne $dc.staggerSchedule false) (regexMatch "^\\*/[0-9]+$" $minute) }}
+{{- $step := atoi (trimPrefix "*/" $minute) }}
+{{- if and (gt $step 1) (lt $step 60) }}
+{{- $offset := mod (atoi (adler32sum $.Release.Namespace)) $step }}
+{{- if not (kindIs "invalid" $dc.scheduleOffset) }}
+{{- $offset = int $dc.scheduleOffset }}
+{{- if or (lt $offset 0) (ge $offset $step) }}
+{{- fail (printf "microServices.diomacConnector.scheduleOffset must be between 0 and %d" (sub $step 1)) }}
+{{- end }}
+{{- end }}
+{{- $schedule = printf "%d-59/%d %s" $offset $step (rest $fields | join " ") }}
+{{- end }}
+{{- end }}
+{{- $jitter := int $dc.startJitterSeconds }}
+{{- if lt $jitter 0 }}
+{{- fail "microServices.diomacConnector.startJitterSeconds must not be negative" }}
+{{- end }}
 apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -7,7 +33,7 @@ metadata:
   labels:
     {{- include "planufacture.labels" (merge (dict "versionKey" "diomacConnector") $) | nindent 4 }}
 spec:
-  schedule: {{ $dc.schedule | quote }}
+  schedule: {{ $schedule | quote }}
   timeZone: {{ $dc.timeZone | quote }}
   concurrencyPolicy: Forbid
   jobTemplate:
@@ -22,11 +48,24 @@ spec:
             runAsUser: 999
             fsGroup: 999
           restartPolicy: Never
-          {{- if $.Values.mongo.enabled }}
+          {{- if or $.Values.mongo.enabled (gt $jitter 0) }}
           initContainers:
+            {{- if gt $jitter 0 }}
+            # Random delay to spread tenants that share a schedule slot
+            - name: start-jitter
+              image: "{{ $.Values.busybox.image.repository }}:{{ $.Values.busybox.image.tag }}"
+              command: ['sh', '-c', 'sleep $((RANDOM % {{ $jitter }}))']
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop:
+                    - ALL
+            {{- end }}
+            {{- if $.Values.mongo.enabled }}
             - name: wait-mongo
               image: "{{ $.Values.busybox.image.repository }}:{{ $.Values.busybox.image.tag }}"
               command: ['sh', '-c', 'until nc -z -v -w30 mongo 27017; do echo "Waiting for mongo..."; sleep 2; done;']
+            {{- end }}
           {{- end }}
           containers:
             {{- $image := dict }}
