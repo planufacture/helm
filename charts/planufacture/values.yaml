@@ -87,6 +87,15 @@ microServices:
     enabled: true
     schedule: "*/5 5-20 * * *"
     timeZone: "Europe/Dublin"
+    # A "*/N" minute field is rewritten to "<offset>-59/N" so tenants don't all
+    # hit mongo in the same minute. The offset is a hash of the namespace;
+    # set scheduleOffset (0..N-1) to pin it, or staggerSchedule: false to keep
+    # the schedule verbatim.
+    staggerSchedule: true
+    scheduleOffset: null
+    # Max random delay (seconds) before the connector starts, to spread tenants
+    # sharing a minute slot. 0 disables. Keep well under the schedule interval.
+    startJitterSeconds: 0
     image:
       tag: 0.0.175
     mongo:

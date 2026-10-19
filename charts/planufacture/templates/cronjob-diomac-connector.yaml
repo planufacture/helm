@@ -1,5 +1,26 @@
 {{- if include "planufacture.componentEnabled" .Values.microServices.diomacConnector }}
 {{- $dc := $.Values.microServices.diomacConnector }}
+{{- /*
+  Every tenant renders the same schedule, so without staggering all connectors
+  hit mongo in the same minute. For a "every N minutes" minute field, rewrite it to
+  "<offset>-59/N" with an offset derived from the namespace (stable across
+  upgrades) or pinned via scheduleOffset.
+*/}}
+{{- $schedule := $dc.schedule }}
+{{- $fields := regexSplit "\\s+" (trim $schedule) -1 }}
+{{- $minute := first $fields }}
+{{- if and (ne $dc.staggerSchedule false) (regexMatch "^\\*/[0-9]+$" $minute) }}
+{{- $step := atoi (trimPrefix "*/" $minute) }}
+{{- if gt $step 1 }}
+{{- $offset := mod (atoi (adler32sum $.Release.Namespace)) $step }}
+{{- if kindIs "float64" $dc.scheduleOffset }}
+{{- $offset = mod (int $dc.scheduleOffset) $step }}
+{{- else if kindIs "int" $dc.scheduleOffset }}
+{{- $offset = mod $dc.scheduleOffset $step }}
+{{- end }}
+{{- $schedule = printf "%d-59/%d %s" $offset $step (rest $fields | join " ") }}
+{{- end }}
+{{- end }}
 apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -7,7 +28,7 @@ metadata:
   labels:
     {{- include "planufacture.labels" (merge (dict "versionKey" "diomacConnector") $) | nindent 4 }}
 spec:
-  schedule: {{ $dc.schedule | quote }}
+  schedule: {{ $schedule | quote }}
   timeZone: {{ $dc.timeZone | quote }}
   concurrencyPolicy: Forbid
   jobTemplate:
@@ -22,11 +43,24 @@ spec:
             runAsUser: 999
             fsGroup: 999
           restartPolicy: Never
-          {{- if $.Values.mongo.enabled }}
+          {{- if or $.Values.mongo.enabled (gt (int $dc.startJitterSeconds) 0) }}
           initContainers:
+            {{- if gt (int $dc.startJitterSeconds) 0 }}
+            # Random delay to spread tenants that share a schedule slot
+            - name: start-jitter
+              image: "{{ $.Values.busybox.image.repository }}:{{ $.Values.busybox.image.tag }}"
+              command: ['sh', '-c', 'sleep $((RANDOM % {{ int $dc.startJitterSeconds }}))']
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop:
+                    - ALL
+            {{- end }}
+            {{- if $.Values.mongo.enabled }}
             - name: wait-mongo
               image: "{{ $.Values.busybox.image.repository }}:{{ $.Values.busybox.image.tag }}"
               command: ['sh', '-c', 'until nc -z -v -w30 mongo 27017; do echo "Waiting for mongo..."; sleep 2; done;']
+            {{- end }}
           {{- end }}
           containers:
             {{- $image := dict }}

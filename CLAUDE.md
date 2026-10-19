@@ -64,6 +64,7 @@ Event sourcing server with separate PVCs for data, events, and logs. Controlled 
 
 ### CronJobs
 - **Diomac Connector**: Schedule and timezone are configurable via `microServices.diomacConnector.schedule` and `.timeZone`. The `wait-mongo` init container is only included when `mongo.enabled: true`. Diomac is a per-customer integration: set `microServices.diomacConnector.enabled: false` for tenants that don't use it and the CronJob, the `-diomac` Secret (so `diomac.key` is no longer required) and domain's `ADMIN_DIOMAC_API_KEY` are all omitted. Defaults to `true`.
+- **Diomac schedule staggering**: every tenant shares the same schedule, so a `*/N` minute field is rewritten to `<offset>-59/N`, with the offset taken from a hash of the release namespace (stable across upgrades). This stops all tenants hitting mongo in the same minute. Pin a tenant's slot with `diomacConnector.scheduleOffset`, or turn rewriting off with `staggerSchedule: false`. `startJitterSeconds` (default 0) adds a `start-jitter` init container that sleeps a random 0..N-1 seconds, to spread tenants that land in the same slot.
 
 ### Monitoring
 ServiceMonitor resources (Prometheus Operator CRD) can be created per microservice by setting `metrics.enabled: true`. Each service opts in via `metrics.enabled: true` in its values block. Default scrape path is `/actuator/prometheus` at 30s intervals. Extra labels for Prometheus discovery can be set via `metrics.serviceMonitor.labels`.
