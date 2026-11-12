@@ -1,4 +1,5 @@
-{{- if .Values.metrics.enabled }}
+{{- if and .Values.metrics.enabled (.Capabilities.APIVersions.Has "monitoring.coreos.com/v1/ServiceMonitor") }}
+{{- $sm := .Values.metrics.serviceMonitor }}
 {{- range $key, $val := .Values.microServices }}
 {{- $context := merge (dict "key" $key) $ }}
 {{- if and .service .metrics (include "planufacture.componentEnabled" .) }}
@@ -8,7 +9,7 @@ metadata:
   name: {{ include "planufacture.fullname" $context }}
   labels:
     {{- include "planufacture.labels" $context | nindent 4 }}
-    {{- with $.Values.metrics.serviceMonitor.labels }}
+    {{- with $sm.labels }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
 spec:
@@ -17,8 +18,21 @@ spec:
       {{- include "planufacture.selectorLabels" $context | nindent 6 }}
   endpoints:
     - port: http
-      path: {{ .metrics.path | default $.Values.metrics.serviceMonitor.path }}
-      interval: {{ .metrics.interval | default $.Values.metrics.serviceMonitor.interval }}
+      path: {{ .metrics.path | default $sm.path }}
+      interval: {{ .metrics.interval | default $sm.interval }}
+      {{- with $sm.oauth2 }}
+      {{- if .enabled }}
+      oauth2:
+        tokenUrl: {{ required "metrics.serviceMonitor.oauth2.tokenUrl is required when oauth2 is enabled" .tokenUrl | quote }}
+        clientId:
+          secret:
+            name: {{ required "keycloak.existingSecret is required for ServiceMonitor oauth2" $.Values.keycloak.existingSecret }}
+            key: {{ .clientIdKey }}
+        clientSecret:
+          name: {{ $.Values.keycloak.existingSecret }}
+          key: {{ .clientSecretKey }}
+      {{- end }}
+      {{- end }}
 ---
 {{- end }}
 {{- end }}
