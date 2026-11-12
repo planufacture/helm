@@ -102,14 +102,16 @@ jobs:
             | select(
                 (.spec.template.spec.topologySpreadConstraints | length) != 2
                 or ([.spec.template.spec.topologySpreadConstraints[] as $c
-                     | select(($c.labelSelector.matchLabels | to_json(0)) != (.spec.selector.matchLabels | sort_keys(.) | to_json(0))
+                     | select(($c.labelSelector.matchLabels | sort_keys(.) | to_json(0)) != (.spec.selector.matchLabels | sort_keys(.) | to_json(0))
                               or ($c.matchLabelKeys | to_json(0)) != "[\"pod-template-hash\"]")] | length) > 0)
             | .metadata.name')
           [ -z "$bad" ] || { echo "::error::Deployments missing correct topology spread: $bad"; status=1; }
           over=$(render --set-json 'microServices.gateway.topologySpreadConstraints=[]' \
             | yq 'select(.metadata.name=="ci-planufacture-gateway") | .spec.template.spec.topologySpreadConstraints | length')
           [ "$over" = "0" ] || { echo "::error::gateway override [] still rendered $over constraints"; status=1; }
-          off=$(render --set topologySpread.enabled=false | grep -c topologySpreadConstraints || true)
+          # render first, so a failed render fails the step instead of counting 0
+          off_out=$(render --set topologySpread.enabled=false)
+          off=$(grep -c topologySpreadConstraints <<<"$off_out" || true)
           [ "$off" = "0" ] || { echo "::error::topologySpread.enabled=false still rendered $off"; status=1; }
           exit $status
 

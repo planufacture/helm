@@ -393,7 +393,9 @@ affinity: {}
 topologySpread:
   enabled: true
   constraints:
-    # Hard rule: never two replicas of one service on the same node.
+    # Hard rule: a node may hold at most one more of a service's replicas than
+    # any other eligible node, so 2 replicas never share a node while there
+    # are 2+ nodes. With more replicas than nodes, some nodes hold two.
     - topologyKey: kubernetes.io/hostname
       maxSkew: 1
       whenUnsatisfiable: DoNotSchedule
