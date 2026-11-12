@@ -32,7 +32,7 @@ microServices:
   ui:
     image:
       repository: planufacture/ui
-      tag: 0.1.218
+      tag: 0.1.220
     # Node 22 (Next.js standalone); peak ~64Mi. V8 sizes its heap from the
     # cgroup limit.
     resources:
