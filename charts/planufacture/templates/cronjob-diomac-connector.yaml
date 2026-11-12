@@ -80,8 +80,10 @@ spec:
                 capabilities:
                   drop:
                     - ALL
+              {{- $resources := default $.Values.resources $dc.resources }}
+              {{- include "planufacture.validateResources" (dict "resources" $resources "name" "microServices.diomacConnector") }}
               resources:
-                {{- toYaml (default $.Values.resources $dc.resources) | nindent 16 }}
+                {{- toYaml $resources | nindent 16 }}
               env:
                 - name: SPRING_PROFILES_ACTIVE
                   valueFrom:

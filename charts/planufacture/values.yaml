@@ -13,9 +13,13 @@ imageRegistry: ghcr.io
 # Sized from the 7-day peak working set across all environments plus headroom.
 #
 # Helm deep-merges an environment's `resources` block onto these defaults, so
-# an override that sets only some keys keeps the rest. Raising only
-# requests.memory leaves limits.memory at the default and the pod is rejected
-# (request > limit); set both, or null a key to drop it.
+# an override that sets only some keys keeps the rest. Raising memory means
+# setting requests.memory and limits.memory together: raising only the request
+# leaves the default limit below it, and the chart fails to render.
+#
+# Don't null limits.memory on a JVM service. With no limit the JVM sizes its
+# heap from the node's 16 GiB, and MaxRAMPercentage below would hand it 50-75%
+# of the node.
 #
 # javaToolOptions: the images set no heap flags, so the JVM sizes its heap at
 # 25% of the container memory limit (it was 25% of the node's 16 GiB while no
@@ -98,13 +102,14 @@ microServices:
       port: 9501
     metrics:
       enabled: true
-    # Peak ~419Mi per replica. Heap 256Mi, ~256Mi non-heap (Netty, Redis).
+    # Peak ~419Mi per replica. Heap 320Mi, ~320Mi non-heap (Netty direct
+    # buffers, Redis).
     resources:
       requests:
         cpu: 100m
-        memory: 512Mi
+        memory: 640Mi
       limits:
-        memory: 512Mi
+        memory: 640Mi
     javaToolOptions: "-XX:MaxRAMPercentage=50.0"
   mcp:
     enabled: false
@@ -114,13 +119,13 @@ microServices:
       port: 9510
     metrics:
       enabled: true
-    # Peak ~409Mi. Heap 256Mi, ~256Mi non-heap.
+    # Peak ~409Mi. Heap 320Mi, ~320Mi non-heap.
     resources:
       requests:
         cpu: 100m
-        memory: 512Mi
+        memory: 640Mi
       limits:
-        memory: 512Mi
+        memory: 640Mi
     javaToolOptions: "-XX:MaxRAMPercentage=50.0"
   diomacConnector:
     # Diomac is a per-customer integration. Set `enabled: false` for tenants
