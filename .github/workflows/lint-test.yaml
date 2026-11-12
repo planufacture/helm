@@ -59,6 +59,30 @@ jobs:
           done
           exit $status
 
+      # ServiceMonitors only render when the cluster has the Prometheus
+      # Operator CRD, which CI has no cluster to report, so ct lint never sees
+      # them. Render with the CRD declared and check each one carries oauth2,
+      # and that a service's own metrics.enabled: false switches its monitor off.
+      - name: Check ServiceMonitors render with OAuth2
+        run: |
+          render() {
+            helm template ci charts/planufacture \
+              --set application.environment=ci --set configuration=ci --set diomac.key=ci \
+              --set microServices.mcp.enabled=true \
+              --api-versions monitoring.coreos.com/v1/ServiceMonitor \
+              --show-only templates/service-monitor.yaml "$@"
+          }
+          out=$(render)
+          monitors=$(grep -c '^kind: ServiceMonitor' <<<"$out" || true)
+          with_oauth=$(grep -c '^      oauth2:' <<<"$out" || true)
+          status=0
+          [ "$monitors" -gt 0 ] || { echo "::error::no ServiceMonitors rendered"; status=1; }
+          [ "$monitors" = "$with_oauth" ] || { echo "::error::$monitors ServiceMonitors but $with_oauth oauth2 blocks"; status=1; }
+          grep -qF 'key: metrics-client-secret' <<<"$out" || { echo "::error::oauth2 clientSecret key missing"; status=1; }
+          off=$(render --set microServices.solver.metrics.enabled=false)
+          grep -q 'name: ci-planufacture-solver$' <<<"$off" && { echo "::error::solver ServiceMonitor rendered with metrics.enabled=false"; status=1; }
+          exit $status
+
 #      - name: Create kind cluster
 #        uses: helm/kind-action@0025e74a8c7512023d06dc019c617aa3cf561fde # v1.10.0
 #        if: steps.list-changed.outputs.changed == 'true'

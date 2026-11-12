@@ -1,8 +1,16 @@
 {{- if and .Values.metrics.enabled (.Capabilities.APIVersions.Has "monitoring.coreos.com/v1/ServiceMonitor") }}
 {{- $sm := .Values.metrics.serviceMonitor }}
+{{- $oauth2 := dict }}
+{{- if dig "oauth2" "enabled" false $sm }}
+{{- $oauth2 = dict
+      "tokenUrl" (required "metrics.serviceMonitor.oauth2.tokenUrl is required when oauth2 is enabled" $sm.oauth2.tokenUrl)
+      "secret" (required "keycloak.existingSecret is required when metrics.serviceMonitor.oauth2 is enabled" $.Values.keycloak.existingSecret)
+      "idKey" (required "metrics.serviceMonitor.oauth2.clientIdKey is required when oauth2 is enabled" $sm.oauth2.clientIdKey)
+      "secretKey" (required "metrics.serviceMonitor.oauth2.clientSecretKey is required when oauth2 is enabled" $sm.oauth2.clientSecretKey) }}
+{{- end }}
 {{- range $key, $val := .Values.microServices }}
 {{- $context := merge (dict "key" $key) $ }}
-{{- if and .service .metrics (include "planufacture.componentEnabled" .) }}
+{{- if and .service (dig "metrics" "enabled" false .) (include "planufacture.componentEnabled" .) }}
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
@@ -20,18 +28,16 @@ spec:
     - port: http
       path: {{ .metrics.path | default $sm.path }}
       interval: {{ .metrics.interval | default $sm.interval }}
-      {{- with $sm.oauth2 }}
-      {{- if .enabled }}
+      {{- if $oauth2 }}
       oauth2:
-        tokenUrl: {{ required "metrics.serviceMonitor.oauth2.tokenUrl is required when oauth2 is enabled" .tokenUrl | quote }}
+        tokenUrl: {{ $oauth2.tokenUrl | quote }}
         clientId:
           secret:
-            name: {{ required "keycloak.existingSecret is required for ServiceMonitor oauth2" $.Values.keycloak.existingSecret }}
-            key: {{ .clientIdKey }}
+            name: {{ $oauth2.secret }}
+            key: {{ $oauth2.idKey }}
         clientSecret:
-          name: {{ $.Values.keycloak.existingSecret }}
-          key: {{ .clientSecretKey }}
-      {{- end }}
+          name: {{ $oauth2.secret }}
+          key: {{ $oauth2.secretKey }}
       {{- end }}
 ---
 {{- end }}
