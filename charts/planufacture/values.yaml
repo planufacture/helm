@@ -364,6 +364,13 @@ metrics:
       tokenUrl: https://login.dev.planufacture.tech/realms/planufacture/protocol/openid-connect/token
       clientIdKey: metrics-client-id
       clientSecretKey: metrics-client-secret
+      # domain's TenantWebFilter rejects any JWT without an `organization`
+      # claim, actuator included. The bare scope returns every Organization
+      # the metrics service account is a member of; metrics aren't tenant
+      # data, so which one doesn't matter. Keycloak omits the claim unless the
+      # service account is a member of at least one Organization.
+      scopes:
+        - organization
 nodeSelector: {}
 tolerations: []
 affinity: {}

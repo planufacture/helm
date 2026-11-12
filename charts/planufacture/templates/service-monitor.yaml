@@ -6,7 +6,8 @@
       "tokenUrl" (required "metrics.serviceMonitor.oauth2.tokenUrl is required when oauth2 is enabled" $sm.oauth2.tokenUrl)
       "secret" (required "keycloak.existingSecret is required when metrics.serviceMonitor.oauth2 is enabled" $.Values.keycloak.existingSecret)
       "idKey" (required "metrics.serviceMonitor.oauth2.clientIdKey is required when oauth2 is enabled" $sm.oauth2.clientIdKey)
-      "secretKey" (required "metrics.serviceMonitor.oauth2.clientSecretKey is required when oauth2 is enabled" $sm.oauth2.clientSecretKey) }}
+      "secretKey" (required "metrics.serviceMonitor.oauth2.clientSecretKey is required when oauth2 is enabled" $sm.oauth2.clientSecretKey)
+      "scopes" ($sm.oauth2.scopes | default list) }}
 {{- end }}
 {{- range $key, $val := .Values.microServices }}
 {{- $context := merge (dict "key" $key) $ }}
@@ -38,6 +39,10 @@ spec:
         clientSecret:
           name: {{ $oauth2.secret }}
           key: {{ $oauth2.secretKey }}
+        {{- with $oauth2.scopes }}
+        scopes:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
       {{- end }}
 ---
 {{- end }}

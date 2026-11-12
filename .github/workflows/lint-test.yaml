@@ -79,6 +79,9 @@ jobs:
           [ "$monitors" -gt 0 ] || { echo "::error::no ServiceMonitors rendered"; status=1; }
           [ "$monitors" = "$with_oauth" ] || { echo "::error::$monitors ServiceMonitors but $with_oauth oauth2 blocks"; status=1; }
           grep -qF 'key: metrics-client-secret' <<<"$out" || { echo "::error::oauth2 clientSecret key missing"; status=1; }
+          # domain rejects tokens without an organization claim
+          with_scope=$(grep -c '^          - organization$' <<<"$out" || true)
+          [ "$monitors" = "$with_scope" ] || { echo "::error::$monitors ServiceMonitors but $with_scope request the organization scope"; status=1; }
           off=$(render --set microServices.solver.metrics.enabled=false)
           grep -q 'name: ci-planufacture-solver$' <<<"$off" && { echo "::error::solver ServiceMonitor rendered with metrics.enabled=false"; status=1; }
           exit $status
