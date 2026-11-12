@@ -262,6 +262,26 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- $spread := list }}
+      {{- if hasKey . "topologySpreadConstraints" }}
+      {{- $spread = .topologySpreadConstraints }}
+      {{- else if $.Values.topologySpread.enabled }}
+      {{- $spread = $.Values.topologySpread.constraints }}
+      {{- end }}
+      {{- with $spread }}
+      {{- $selector := include "planufacture.selectorLabels" $context | fromYaml }}
+      topologySpreadConstraints:
+        {{- range $c := . }}
+        {{- $c = deepCopy $c }}
+        {{- if not (hasKey $c "labelSelector") }}
+        {{- $_ := set $c "labelSelector" (dict "matchLabels" $selector) }}
+        {{- end }}
+        {{- if not (hasKey $c "matchLabelKeys") }}
+        {{- $_ := set $c "matchLabelKeys" (list "pod-template-hash") }}
+        {{- end }}
+        - {{ toYaml $c | nindent 10 | trim }}
+        {{- end }}
+      {{- end }}
 ---
 {{- end }}
 {{- end }}
