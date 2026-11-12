@@ -374,3 +374,33 @@ metrics:
 nodeSelector: {}
 tolerations: []
 affinity: {}
+
+# Spreads each microservice Deployment's replicas across nodes and zones. The
+# scheduler's built-in spreading is only a weak score: on a rollout that
+# coincides with a new, empty node, every replica can land on that one node,
+# and a second replica then protects nothing.
+#
+# The chart adds to each constraint a labelSelector built from that service's
+# own selector labels (so a service spreads only against its own pods) and
+# matchLabelKeys: [pod-template-hash] (so during a rolling update the surge pod
+# is counted only against the new ReplicaSet's pods). A constraint that already
+# sets either keeps its own.
+#
+# Override per service with microServices.<name>.topologySpreadConstraints,
+# which replaces these defaults for that service ([] means none). Set
+# enabled: false to drop the defaults for every service.
+# Not applied to the Axon Server StatefulSet or the diomac CronJob.
+topologySpread:
+  enabled: true
+  constraints:
+    # Hard rule: never two replicas of one service on the same node.
+    - topologyKey: kubernetes.io/hostname
+      maxSkew: 1
+      whenUnsatisfiable: DoNotSchedule
+      # Leave cordoned or tainted nodes out of the skew count.
+      nodeTaintsPolicy: Honor
+    # Preference only, so a full zone can't block a rollout.
+    - topologyKey: topology.kubernetes.io/zone
+      maxSkew: 1
+      whenUnsatisfiable: ScheduleAnyway
+      nodeTaintsPolicy: Honor
