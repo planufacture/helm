@@ -8,11 +8,35 @@ application: {}
 # pods pull via node IAM and no imagePullSecret is needed, e.g.
 #   imageRegistry: 503561419401.dkr.ecr.eu-west-1.amazonaws.com/ghcr
 imageRegistry: ghcr.io
+# Default resources per component. Memory request == limit (a pod is never
+# scheduled onto memory it may later need); CPU is a request only, no limit.
+# Sized from the 7-day peak working set across all environments plus headroom.
+#
+# Helm deep-merges an environment's `resources` block onto these defaults, so
+# an override that sets only some keys keeps the rest. Raising only
+# requests.memory leaves limits.memory at the default and the pod is rejected
+# (request > limit); set both, or null a key to drop it.
+#
+# javaToolOptions: the images set no heap flags, so the JVM sizes its heap at
+# 25% of the container memory limit (it was 25% of the node's 16 GiB while no
+# limit was set). MaxRAMPercentage raises that share, leaving the rest for
+# metaspace, code cache, thread stacks and direct buffers. It is a percentage,
+# so it follows an environment's resources override. Rendered as the
+# JAVA_TOOL_OPTIONS env var unless the component's `env` already sets it;
+# set to "" to omit.
 microServices:
   ui:
     image:
       repository: planufacture/ui
       tag: 0.1.174
+    # Node 22 (Next.js standalone); peak ~64Mi. V8 sizes its heap from the
+    # cgroup limit.
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        memory: 128Mi
     service:
       port: 3000
     startupProbe:
@@ -37,6 +61,14 @@ microServices:
     configuration: true
     metrics:
       enabled: true
+    # Peak ~489Mi. Heap 320Mi, ~320Mi non-heap.
+    resources:
+      requests:
+        cpu: 50m
+        memory: 640Mi
+      limits:
+        memory: 640Mi
+    javaToolOptions: "-XX:MaxRAMPercentage=50.0"
   domain:
     replicaCount: 1
     mongo:
@@ -66,6 +98,14 @@ microServices:
       port: 9501
     metrics:
       enabled: true
+    # Peak ~419Mi per replica. Heap 256Mi, ~256Mi non-heap (Netty, Redis).
+    resources:
+      requests:
+        cpu: 100m
+        memory: 512Mi
+      limits:
+        memory: 512Mi
+    javaToolOptions: "-XX:MaxRAMPercentage=50.0"
   mcp:
     enabled: false
     image:
@@ -74,6 +114,14 @@ microServices:
       port: 9510
     metrics:
       enabled: true
+    # Peak ~409Mi. Heap 256Mi, ~256Mi non-heap.
+    resources:
+      requests:
+        cpu: 100m
+        memory: 512Mi
+      limits:
+        memory: 512Mi
+    javaToolOptions: "-XX:MaxRAMPercentage=50.0"
   diomacConnector:
     # Diomac is a per-customer integration. Set `enabled: false` for tenants
     # that don't use it — the CronJob, the -diomac Secret (and so the
@@ -102,6 +150,15 @@ microServices:
       db: diomac-connector
       existingSecret: mongodb-credentials
       existingSecretKey: diomac-connection-string
+    # Peak ~735Mi working set (~780Mi RSS) while its heap was uncapped.
+    # Heap ~614Mi, ~410Mi non-heap.
+    resources:
+      requests:
+        cpu: 100m
+        memory: 1Gi
+      limits:
+        memory: 1Gi
+    javaToolOptions: "-XX:MaxRAMPercentage=60.0"
   solver:
     image:
       repository: planufacture/solver
@@ -112,6 +169,16 @@ microServices:
       existingSecretKey: solver-connection-string
     service:
       port: 9520
+    # Idle peak ~454Mi, but no solve ran in the metrics window (max CPU 0.04
+    # cores), so solving memory is unmeasured. Timefold keeps the working
+    # solution on the heap, so this is sized above idle: heap ~614Mi.
+    resources:
+      requests:
+        cpu: 100m
+        memory: 1Gi
+      limits:
+        memory: 1Gi
+    javaToolOptions: "-XX:MaxRAMPercentage=60.0"
 busybox:
   image:
     repository: 503561419401.dkr.ecr.eu-west-1.amazonaws.com/docker-hub/library/busybox

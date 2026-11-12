@@ -111,6 +111,21 @@ true
 {{- end }}
 
 {{/*
+Returns "true" when the env list (dict "env" <list> "name" <string>) already
+holds a variable of that name. Used so a chart-provided variable such as
+JAVA_TOOL_OPTIONS steps aside for an env's own `env` entry instead of
+rendering a duplicate name.
+*/}}
+{{- define "planufacture.envHasName" -}}
+{{- $name := .name -}}
+{{- if kindIs "slice" .env -}}
+{{- range .env -}}
+{{- if and (kindIs "map" .) (eq (toString .name) $name) -}}true{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- end }}
+
+{{/*
 Common labels
 */}}
 {{- define "planufacture.labels" -}}

@@ -63,6 +63,10 @@ spec:
                   key: active
             - name: SPRING_CLOUD_CONFIG_LABEL
               value: {{ required "A valid .Values.application.environment is required" $.Values.application.environment }}
+            {{- if and .javaToolOptions (not (include "planufacture.envHasName" (dict "env" .env "name" "JAVA_TOOL_OPTIONS"))) }}
+            - name: JAVA_TOOL_OPTIONS
+              value: {{ .javaToolOptions | quote }}
+            {{- end }}
             {{- if .mongo }}
             {{- $mongo := .mongo }}
             {{- /* Boot 3 reads SPRING_DATA_MONGODB_URI, Boot 4 reads SPRING_MONGODB_URI; drop the old name once all services are on Boot 4 */}}

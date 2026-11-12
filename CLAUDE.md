@@ -37,7 +37,7 @@ There is no Makefile or package.json. All CI automation is in GitHub Actions wor
 ## Architecture
 
 ### Multi-Service Template Pattern
-The core design pattern is a **single deployment template** (`templates/deployment.yaml`) that loops over `values.microServices` to generate one Deployment per service. The same pattern applies to `service.yaml` and `secret-mongo-micro-services.yaml`. Each microservice entry in values can declare `.service`, `.mongo`, `.rabbit`, `.axon` flags to conditionally attach environment variables and dependencies. Per-service `resources` can be set with a fallback to the global `resources` default.
+The core design pattern is a **single deployment template** (`templates/deployment.yaml`) that loops over `values.microServices` to generate one Deployment per service. The same pattern applies to `service.yaml` and `secret-mongo-micro-services.yaml`. Each microservice entry in values can declare `.service`, `.mongo`, `.rabbit`, `.axon` flags to conditionally attach environment variables and dependencies. Per-service `resources` can be set with a fallback to the global `resources` default. Every component ships a default `resources` block in `values.yaml` (memory request = limit, CPU request only); env overrides deep-merge onto it, so an override must set both request and limit for memory. JVM services also set `javaToolOptions` (rendered as `JAVA_TOOL_OPTIONS` unless the service's `env` already defines it) to raise `MaxRAMPercentage`, because the images set no heap flags and the JVM default is 25% of the limit.
 
 A service is on unless it opts out: only an explicit `enabled: false` switches one off, and templates test this with the `planufacture.componentEnabled` helper rather than checking `.enabled` inline.
 

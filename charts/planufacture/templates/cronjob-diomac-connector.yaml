@@ -90,6 +90,10 @@ spec:
                       key: active
                 - name: SPRING_CLOUD_CONFIG_LABEL
                   value: {{ required "A valid .Values.application.environment is required" $.Values.application.environment }}
+                {{- if and $dc.javaToolOptions (not (include "planufacture.envHasName" (dict "env" $dc.env "name" "JAVA_TOOL_OPTIONS"))) }}
+                - name: JAVA_TOOL_OPTIONS
+                  value: {{ $dc.javaToolOptions | quote }}
+                {{- end }}
                 {{- /* Boot 3 reads SPRING_DATA_MONGODB_URI, Boot 4 reads SPRING_MONGODB_URI; drop the old name once diomac is on Boot 4 */}}
                 {{- range $envName := list "SPRING_DATA_MONGODB_URI" "SPRING_MONGODB_URI" }}
                 - name: {{ $envName }}
