@@ -67,7 +67,7 @@ Event sourcing server with separate PVCs for data, events, and logs. Controlled 
 - **Diomac schedule staggering**: every tenant shares the same schedule, so a `*/N` minute field is rewritten to `<offset>-59/N`, with the offset taken from a hash of the release namespace (stable across upgrades). This stops all tenants hitting mongo in the same minute. Pin a tenant's slot with `diomacConnector.scheduleOffset`, or turn rewriting off with `staggerSchedule: false`. `startJitterSeconds` (default 0) adds a `start-jitter` init container that sleeps a random 0..N-1 seconds, to spread tenants that land in the same slot.
 
 ### Monitoring
-ServiceMonitor resources (Prometheus Operator CRD) can be created per microservice by setting `metrics.enabled: true`. Each service opts in via `metrics.enabled: true` in its values block. Default scrape path is `/actuator/prometheus` at 30s intervals. Extra labels for Prometheus discovery can be set via `metrics.serviceMonitor.labels`.
+ServiceMonitor resources (Prometheus Operator CRD) are created per microservice while `metrics.enabled: true` (the default) and the cluster has the ServiceMonitor CRD. Each service opts in via `metrics.enabled: true` in its values block. Default scrape path is `/actuator/prometheus` at 30s intervals. Extra labels for Prometheus discovery can be set via `metrics.serviceMonitor.labels`. The actuator endpoints sit behind the services' JWT security, so scrapes authenticate with OAuth2 client credentials (`metrics.serviceMonitor.oauth2`): the per-environment `metrics` Keycloak client, whose id and secret terraform's keycloak-tenants module writes into `keycloak.existingSecret`.
 
 ### Environment-Specific Values
 - `values/` directory is gitignored — environment values are local only

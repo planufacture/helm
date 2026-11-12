@@ -168,6 +168,8 @@ microServices:
     image:
       repository: planufacture/solver
       tag: 1.3.42
+    metrics:
+      enabled: true
     mongo:
       db: solver
       existingSecret: mongodb-credentials
@@ -344,12 +346,31 @@ volumeMounts: []
 # microServices.diomacConnector.enabled is true.
 diomac: {}
 metrics:
-  enabled: false
+  # Creates a ServiceMonitor for each service with `metrics.enabled: true`.
+  # Skipped when the cluster has no ServiceMonitor CRD (Prometheus Operator).
+  enabled: true
   serviceMonitor:
     path: /actuator/prometheus
     interval: 30s
     # Extra labels to add to ServiceMonitor resources (e.g. release: kube-prometheus-stack)
     labels: {}
+    # /actuator/prometheus sits behind the services' JWT security, so
+    # Prometheus fetches a client-credentials token from Keycloak and scrapes
+    # with it. The client is the per-environment "metrics" confidential client
+    # that terraform's keycloak-tenants module writes into the
+    # keycloak.existingSecret Secret. Set enabled: false to scrape without auth.
+    oauth2:
+      enabled: true
+      tokenUrl: https://login.dev.planufacture.tech/realms/planufacture/protocol/openid-connect/token
+      clientIdKey: metrics-client-id
+      clientSecretKey: metrics-client-secret
+      # domain's TenantWebFilter rejects any JWT without an `organization`
+      # claim, actuator included. The bare scope returns every Organization
+      # the metrics service account is a member of; metrics aren't tenant
+      # data, so which one doesn't matter. Keycloak omits the claim unless the
+      # service account is a member of at least one Organization.
+      scopes:
+        - organization
 nodeSelector: {}
 tolerations: []
 affinity: {}

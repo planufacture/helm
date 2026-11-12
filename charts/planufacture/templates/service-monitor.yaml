@@ -1,14 +1,24 @@
-{{- if .Values.metrics.enabled }}
+{{- if and .Values.metrics.enabled (.Capabilities.APIVersions.Has "monitoring.coreos.com/v1/ServiceMonitor") }}
+{{- $sm := .Values.metrics.serviceMonitor }}
+{{- $oauth2 := dict }}
+{{- if dig "oauth2" "enabled" false $sm }}
+{{- $oauth2 = dict
+      "tokenUrl" (required "metrics.serviceMonitor.oauth2.tokenUrl is required when oauth2 is enabled" $sm.oauth2.tokenUrl)
+      "secret" (required "keycloak.existingSecret is required when metrics.serviceMonitor.oauth2 is enabled" $.Values.keycloak.existingSecret)
+      "idKey" (required "metrics.serviceMonitor.oauth2.clientIdKey is required when oauth2 is enabled" $sm.oauth2.clientIdKey)
+      "secretKey" (required "metrics.serviceMonitor.oauth2.clientSecretKey is required when oauth2 is enabled" $sm.oauth2.clientSecretKey)
+      "scopes" ($sm.oauth2.scopes | default list) }}
+{{- end }}
 {{- range $key, $val := .Values.microServices }}
 {{- $context := merge (dict "key" $key) $ }}
-{{- if and .service .metrics (include "planufacture.componentEnabled" .) }}
+{{- if and .service (dig "metrics" "enabled" false .) (include "planufacture.componentEnabled" .) }}
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
   name: {{ include "planufacture.fullname" $context }}
   labels:
     {{- include "planufacture.labels" $context | nindent 4 }}
-    {{- with $.Values.metrics.serviceMonitor.labels }}
+    {{- with $sm.labels }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
 spec:
@@ -17,8 +27,23 @@ spec:
       {{- include "planufacture.selectorLabels" $context | nindent 6 }}
   endpoints:
     - port: http
-      path: {{ .metrics.path | default $.Values.metrics.serviceMonitor.path }}
-      interval: {{ .metrics.interval | default $.Values.metrics.serviceMonitor.interval }}
+      path: {{ .metrics.path | default $sm.path }}
+      interval: {{ .metrics.interval | default $sm.interval }}
+      {{- if $oauth2 }}
+      oauth2:
+        tokenUrl: {{ $oauth2.tokenUrl | quote }}
+        clientId:
+          secret:
+            name: {{ $oauth2.secret }}
+            key: {{ $oauth2.idKey }}
+        clientSecret:
+          name: {{ $oauth2.secret }}
+          key: {{ $oauth2.secretKey }}
+        {{- with $oauth2.scopes }}
+        scopes:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+      {{- end }}
 ---
 {{- end }}
 {{- end }}
