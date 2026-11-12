@@ -51,7 +51,7 @@ jobs:
             --set-json 'microServices.diomacConnector.env=[{"name":"CI_ENV_CHECK","value":"1"}]' \
             --set-json 'microServices.diomacConnector.volumeMounts=[{"name":"ci-check","mountPath":"/ci-check"}]' \
             --set-json 'microServices.diomacConnector.volumes=[{"name":"ci-check","emptyDir":{}}]' \
-            --set-json 'microServices.diomacConnector.resources={"limits":{"memory":"123Mi"}}' \
+            --set-json 'microServices.diomacConnector.resources={"requests":{"memory":"123Mi"},"limits":{"memory":"123Mi"}}' \
             --show-only templates/cronjob-diomac-connector.yaml)
           status=0
           for want in "name: CI_ENV_CHECK" "mountPath: /ci-check" "emptyDir: {}" "memory: 123Mi"; do

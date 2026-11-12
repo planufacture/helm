@@ -111,6 +111,62 @@ true
 {{- end }}
 
 {{/*
+Converts a Kubernetes memory quantity (e.g. 512Mi, 1Gi, or a plain number of
+bytes) to a byte count string, or "" when it can't be parsed.
+*/}}
+{{- define "planufacture.memBytes" -}}
+{{- if or (kindIs "float64" .) (kindIs "int64" .) (kindIs "int" .) -}}
+{{- printf "%f" (float64 .) -}}
+{{- else -}}
+{{- $q := toString . | trim -}}
+{{- $units := dict "" 1.0 "m" 0.001 "k" 1e3 "M" 1e6 "G" 1e9 "T" 1e12 "Ki" 1024.0 "Mi" 1048576.0 "Gi" 1073741824.0 "Ti" 1099511627776.0 -}}
+{{- if regexMatch "^[0-9]+(\\.[0-9]+)?(m|k|M|G|T|Ki|Mi|Gi|Ti)?$" $q -}}
+{{- $num := regexFind "^[0-9]+(\\.[0-9]+)?" $q -}}
+{{- $unit := trimPrefix $num $q -}}
+{{- printf "%f" (mulf (float64 $num) (get $units $unit)) -}}
+{{- end -}}
+{{- end -}}
+{{- end }}
+
+{{/*
+Fails rendering when a container's memory request exceeds its memory limit.
+Env overrides deep-merge onto the chart's default resources, so raising only
+requests.memory leaves the default limit below it. The API server would reject
+the pod mid-rollout; failing here surfaces it at `helm template`/upgrade time.
+Quantities it can't parse are left for the API server to judge.
+Takes (dict "resources" <map> "name" <string>).
+*/}}
+{{- define "planufacture.validateResources" -}}
+{{- $res := .resources -}}
+{{- if kindIs "map" $res -}}
+{{- $req := dig "requests" "memory" "" $res -}}
+{{- $lim := dig "limits" "memory" "" $res -}}
+{{- if and $req $lim -}}
+{{- $reqB := include "planufacture.memBytes" $req -}}
+{{- $limB := include "planufacture.memBytes" $lim -}}
+{{- if and $reqB $limB (gt (float64 $reqB) (float64 $limB)) -}}
+{{- fail (printf "%s: resources.requests.memory (%v) is greater than resources.limits.memory (%v). Env overrides merge onto the chart defaults, so set both when raising memory." .name $req $lim) -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- end }}
+
+{{/*
+Returns "true" when the env list (dict "env" <list> "name" <string>) already
+holds a variable of that name. Used so a chart-provided variable such as
+JAVA_TOOL_OPTIONS steps aside for an env's own `env` entry instead of
+rendering a duplicate name.
+*/}}
+{{- define "planufacture.envHasName" -}}
+{{- $name := .name -}}
+{{- if kindIs "slice" .env -}}
+{{- range .env -}}
+{{- if and (kindIs "map" .) (eq (toString .name) $name) -}}true{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- end }}
+
+{{/*
 Common labels
 */}}
 {{- define "planufacture.labels" -}}

@@ -63,6 +63,10 @@ spec:
                   key: active
             - name: SPRING_CLOUD_CONFIG_LABEL
               value: {{ required "A valid .Values.application.environment is required" $.Values.application.environment }}
+            {{- if and .javaToolOptions (not (include "planufacture.envHasName" (dict "env" .env "name" "JAVA_TOOL_OPTIONS"))) }}
+            - name: JAVA_TOOL_OPTIONS
+              value: {{ .javaToolOptions | quote }}
+            {{- end }}
             {{- if .mongo }}
             {{- $mongo := .mongo }}
             {{- /* Boot 3 reads SPRING_DATA_MONGODB_URI, Boot 4 reads SPRING_MONGODB_URI; drop the old name once all services are on Boot 4 */}}
@@ -217,8 +221,10 @@ spec:
             {{- else }}
             {{- toYaml $.Values.readinessProbe | nindent 12 }}
             {{- end }}
+          {{- $resources := default $.Values.resources .resources }}
+          {{- include "planufacture.validateResources" (dict "resources" $resources "name" (printf "microServices.%s" $key)) }}
           resources:
-            {{- toYaml (default $.Values.resources .resources) | nindent 12 }}
+            {{- toYaml $resources | nindent 12 }}
           {{- if .configuration }}
           volumeMounts:
             - name: configuration
