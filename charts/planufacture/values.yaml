@@ -138,7 +138,7 @@ microServices:
     # image.tag is set by update-helm-chart.yaml on each planufacture-chat
     # release; the render fails if chat is enabled before there is one.
     image:
-      tag: 0.0.1
+      tag: 0.0.2
     service:
       port: 9540
     metrics:
@@ -374,7 +374,6 @@ volumeMounts: []
 # domain service. `diomac.key` is required only while
 # microServices.diomacConnector.enabled is true.
 diomac: {}
-
 # Anthropic API key for microServices.chat, used only while chat is enabled.
 # Always from a pre-provisioned per-tenant Secret in the release namespace.
 # The chart never creates it and refuses a plain apiKey value.
@@ -411,7 +410,6 @@ metrics:
 nodeSelector: {}
 tolerations: []
 affinity: {}
-
 # Spreads each microservice Deployment's replicas across nodes and zones. The
 # scheduler's built-in spreading is only a weak score: on a rollout that
 # coincides with a new, empty node, every replica can land on that one node,
