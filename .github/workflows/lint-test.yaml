@@ -132,7 +132,7 @@ jobs:
             | .name + "=" + (.value // (.valueFrom.secretKeyRef.name + "/" + .valueFrom.secretKeyRef.key))' <<<"$out")
           for want in \
             "CHAT_ALLOWED_CLIENTS=keycloak-credentials/gateway-client-id" \
-            "ANTHROPIC_API_KEY=ci-planufacture-chat-anthropic/api-key" \
+            "ANTHROPIC_API_KEY=ci-planufacture-chat-anthropic/anthropic-api-key" \
             "SPRING_PROFILES_INCLUDE=anthropic" \
             "MCP_SERVER_URL=http://planufacture-mcp:9510" \
             "CHAT_REDIS_KEY_PREFIX=ci-ns:" \
@@ -149,6 +149,20 @@ jobs:
           else
             grep -qF 'requires microServices.mcp' <<<"$err" || { echo "::error::chat without mcp failed for another reason: $err"; status=1; }
           fi
+          # without a tag the image would fall back to appVersion (the UI's)
+          if err=$(render --set microServices.mcp.enabled=true --set chat.anthropic.apiKey=ci-placeholder \
+                     --set microServices.chat.image.tag= 2>&1); then
+            echo "::error::chat rendered without an image tag"; status=1
+          else
+            grep -qF 'image.tag is required' <<<"$err" || { echo "::error::chat without a tag failed for another reason: $err"; status=1; }
+          fi
+          # a changed key must roll the pod (it's read only at container start)
+          sum() {
+            render --set microServices.mcp.enabled=true --set chat.anthropic.apiKey="$1" \
+              | yq 'select(.kind=="Deployment" and .metadata.name=="ci-planufacture-chat") | .spec.template.metadata.annotations."checksum/anthropic-api-key"'
+          }
+          a=$(sum ci-placeholder-a); b=$(sum ci-placeholder-b)
+          { [ -n "$a" ] && [ "$a" != "null" ] && [ "$a" != "$b" ]; } || { echo "::error::chat pod template doesn't change with the Anthropic key"; status=1; }
           exit $status
 
 #      - name: Create kind cluster

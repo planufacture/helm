@@ -14,9 +14,25 @@ spec:
   selector:
     matchLabels:
       {{- include "planufacture.selectorLabels" $context | nindent 6 }}
+  {{- /* `image` may be absent or null; without this the repository default on
+         the container's image is unreachable and rendering dies on a nil pointer. */}}
+  {{- $image := dict }}
+  {{- if kindIs "map" .image }}
+  {{- $image = .image }}
+  {{- end }}
+  {{- $podAnnotations := deepCopy ($.Values.podAnnotations | default dict) }}
+  {{- $anthropic := dict }}
+  {{- if eq $key "chat" }}
+  {{- include "planufacture.validateChat" (dict "root" $ "image" $image) }}
+  {{- $anthropic = include "planufacture.chatAnthropic" $ | fromYaml }}
+  {{- if not $anthropic.existingSecret }}
+  {{- /* The key is read only at container start, so roll the pod when it changes. */}}
+  {{- $_ := set $podAnnotations "checksum/anthropic-api-key" ($anthropic.apiKey | toString | sha256sum) }}
+  {{- end }}
+  {{- end }}
   template:
     metadata:
-      {{- with $.Values.podAnnotations }}
+      {{- with $podAnnotations }}
       annotations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
@@ -40,12 +56,6 @@ spec:
           command: ['sh', '-c', 'until wget -qO- http://{{ include "planufacture.name" $ }}-config-server:8888/actuator/health > /dev/null 2>&1; do echo "Waiting for config-server..."; sleep 5; done;']
       {{- end }}
       containers:
-        {{- /* `image` may be absent or null; without this the repository default below
-               is unreachable and rendering dies on a nil pointer. */}}
-        {{- $image := dict }}
-        {{- if kindIs "map" .image }}
-        {{- $image = .image }}
-        {{- end }}
         - name: {{ $.Chart.Name }}-{{ $key | kebabcase }}
           securityContext:
             {{- toYaml $.Values.securityContext | nindent 12 }}
@@ -161,18 +171,13 @@ spec:
             {{- end }}
             {{- if eq $key "chat" }}
             {{- $mcp := $.Values.microServices.mcp }}
-            {{- if not (and $mcp (include "planufacture.componentEnabled" $mcp)) }}
-            {{- fail "microServices.chat requires microServices.mcp to be enabled: the chat gets all its data through mcp's tools" }}
-            {{- end }}
-            {{- $_ := required "microServices.chat.image.tag is required when chat is enabled (set by update-helm-chart.yaml on each planufacture-chat release)" (dig "image" "tag" "" .) }}
-            {{- $anthropic := dig "anthropic" dict ($.Values.chat | default dict) }}
             # The chat passes the user's token on to mcp, so it accepts only
             # tokens issued to the tenant's own gateway client (azp). Same
             # secret and key as the gateway's GATEWAY_OAUTH2_CLIENT.
             - name: CHAT_ALLOWED_CLIENTS
               valueFrom:
                 secretKeyRef:
-                  name: {{ $.Values.keycloak.existingSecret }}
+                  name: {{ required "keycloak.existingSecret is required when microServices.chat is enabled (CHAT_ALLOWED_CLIENTS)" $.Values.keycloak.existingSecret }}
                   key: gateway-client-id
             - name: ANTHROPIC_API_KEY
               valueFrom:
@@ -182,7 +187,7 @@ spec:
                   key: {{ $anthropic.existingSecretKey | default "anthropic-api-key" }}
                   {{- else }}
                   name: {{ include "planufacture.fullname" $ }}-chat-anthropic
-                  key: api-key
+                  key: anthropic-api-key
                   {{- end }}
             - name: SPRING_PROFILES_INCLUDE
               value: anthropic
