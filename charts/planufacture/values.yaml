@@ -374,12 +374,12 @@ volumeMounts: []
 diomac: {}
 
 # Anthropic API key for microServices.chat, used only while chat is enabled.
-# Always from a pre-provisioned per-tenant Secret: set anthropic.existingSecret
-# to its name (key defaults to `anthropic-api-key`; override with
-# anthropic.existingSecretKey). The chart never creates this Secret and
-# refuses a plain apiKey value.
+# Always from a pre-provisioned per-tenant Secret in the release namespace.
+# The chart never creates it and refuses a plain apiKey value.
 chat:
-  anthropic: {}
+  anthropic:
+    existingSecret: anthropic-credentials
+    existingSecretKey: anthropic-api-key
 metrics:
   # Creates a ServiceMonitor for each service with `metrics.enabled: true`.
   # Skipped when the cluster has no ServiceMonitor CRD (Prometheus Operator).

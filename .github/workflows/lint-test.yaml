@@ -124,7 +124,7 @@ jobs:
             helm template ci charts/planufacture -n ci-ns \
               --set application.environment=ci --set configuration=ci --set diomac.key=ci \
               --set microServices.chat.enabled=true --set microServices.chat.image.tag=0.0.0-ci \
-              --set microServices.mcp.enabled=true --set chat.anthropic.existingSecret=ci-anthropic "$@"
+              --set microServices.mcp.enabled=true "$@"
           }
           status=0
           out=$(render)
@@ -133,7 +133,7 @@ jobs:
             | .name + "=" + (.value // (.valueFrom.secretKeyRef.name + "/" + .valueFrom.secretKeyRef.key))' <<<"$out")
           for want in \
             "CHAT_ALLOWED_CLIENTS=keycloak-credentials/gateway-client-id" \
-            "ANTHROPIC_API_KEY=ci-anthropic/anthropic-api-key" \
+            "ANTHROPIC_API_KEY=anthropic-credentials/anthropic-api-key" \
             "SPRING_PROFILES_INCLUDE=anthropic" \
             "MCP_SERVER_URL=http://planufacture-mcp:9510" \
             "CHAT_REDIS_KEY_PREFIX=ci-ns:" \
@@ -144,6 +144,9 @@ jobs:
           # the chart must never create a Secret holding the key
           grep -qi 'anthropic' <<<"$(yq 'select(.kind=="Secret") | .metadata.name' <<<"$out")" \
             && { echo "::error::chart rendered an Anthropic Secret"; status=1; }
+          # an environment can still point at its own Secret
+          render --set chat.anthropic.existingSecret=ci-anthropic | grep -qF 'name: ci-anthropic' \
+            || { echo "::error::chat.anthropic.existingSecret override not used"; status=1; }
           expect_fail() {
             local want=$1; shift
             if err=$(render "$@" 2>&1); then
