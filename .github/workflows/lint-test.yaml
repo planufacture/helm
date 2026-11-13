@@ -116,23 +116,24 @@ jobs:
           exit $status
 
       # chat is off by default, so ct lint never renders it. Render it on and
-      # check its env and secret references, and that it refuses to render
-      # without mcp (its only source of data).
+      # check its env and secret references, and that each missing dependency
+      # (mcp, image tag, Anthropic Secret) fails the render.
       - name: Check chat renders with its dependencies
         run: |
           render() {
             helm template ci charts/planufacture -n ci-ns \
               --set application.environment=ci --set configuration=ci --set diomac.key=ci \
-              --set microServices.chat.enabled=true --set microServices.chat.image.tag=0.0.0-ci "$@"
+              --set microServices.chat.enabled=true --set microServices.chat.image.tag=0.0.0-ci \
+              --set microServices.mcp.enabled=true --set chat.anthropic.existingSecret=ci-anthropic "$@"
           }
           status=0
-          out=$(render --set microServices.mcp.enabled=true --set chat.anthropic.apiKey=ci-placeholder)
+          out=$(render)
           env=$(yq 'select(.kind=="Deployment" and .metadata.name=="ci-planufacture-chat")
             | .spec.template.spec.containers[0].env[]
             | .name + "=" + (.value // (.valueFrom.secretKeyRef.name + "/" + .valueFrom.secretKeyRef.key))' <<<"$out")
           for want in \
             "CHAT_ALLOWED_CLIENTS=keycloak-credentials/gateway-client-id" \
-            "ANTHROPIC_API_KEY=ci-planufacture-chat-anthropic/anthropic-api-key" \
+            "ANTHROPIC_API_KEY=ci-anthropic/anthropic-api-key" \
             "SPRING_PROFILES_INCLUDE=anthropic" \
             "MCP_SERVER_URL=http://planufacture-mcp:9510" \
             "CHAT_REDIS_KEY_PREFIX=ci-ns:" \
@@ -140,29 +141,22 @@ jobs:
             "SPRING_DATA_REDIS_PASSWORD=redis-credentials/password"; do
             grep -qxF "$want" <<<"$env" || { echo "::error::chat Deployment is missing $want"; status=1; }
           done
-          grep -qF 'name: ci-planufacture-chat-anthropic' <<<"$out" || { echo "::error::chart-managed Anthropic Secret not rendered"; status=1; }
-          ext=$(render --set microServices.mcp.enabled=true --set chat.anthropic.existingSecret=ci-anthropic)
-          grep -qF 'name: ci-planufacture-chat-anthropic' <<<"$ext" && { echo "::error::Anthropic Secret rendered despite existingSecret"; status=1; }
-          grep -qF 'name: ci-anthropic' <<<"$ext" || { echo "::error::ANTHROPIC_API_KEY does not use existingSecret"; status=1; }
-          if err=$(render --set chat.anthropic.apiKey=ci-placeholder 2>&1); then
-            echo "::error::chat rendered without mcp enabled"; status=1
-          else
-            grep -qF 'requires microServices.mcp' <<<"$err" || { echo "::error::chat without mcp failed for another reason: $err"; status=1; }
-          fi
-          # without a tag the image would fall back to appVersion (the UI's)
-          if err=$(render --set microServices.mcp.enabled=true --set chat.anthropic.apiKey=ci-placeholder \
-                     --set microServices.chat.image.tag= 2>&1); then
-            echo "::error::chat rendered without an image tag"; status=1
-          else
-            grep -qF 'image.tag is required' <<<"$err" || { echo "::error::chat without a tag failed for another reason: $err"; status=1; }
-          fi
-          # a changed key must roll the pod (it's read only at container start)
-          sum() {
-            render --set microServices.mcp.enabled=true --set chat.anthropic.apiKey="$1" \
-              | yq 'select(.kind=="Deployment" and .metadata.name=="ci-planufacture-chat") | .spec.template.metadata.annotations."checksum/anthropic-api-key"'
+          # the chart must never create a Secret holding the key
+          grep -qi 'anthropic' <<<"$(yq 'select(.kind=="Secret") | .metadata.name' <<<"$out")" \
+            && { echo "::error::chart rendered an Anthropic Secret"; status=1; }
+          expect_fail() {
+            local want=$1; shift
+            if err=$(render "$@" 2>&1); then
+              echo "::error::chat rendered with $*"; status=1
+            else
+              grep -qF "$want" <<<"$err" || { echo "::error::chat with $* failed for another reason: $err"; status=1; }
+            fi
           }
-          a=$(sum ci-placeholder-a); b=$(sum ci-placeholder-b)
-          { [ -n "$a" ] && [ "$a" != "null" ] && [ "$a" != "$b" ]; } || { echo "::error::chat pod template doesn't change with the Anthropic key"; status=1; }
+          expect_fail 'requires microServices.mcp' --set microServices.mcp.enabled=false
+          # without a tag the image would fall back to appVersion (the UI's)
+          expect_fail 'image.tag is required' --set microServices.chat.image.tag=
+          expect_fail 'existingSecret is required' --set chat.anthropic.existingSecret=
+          expect_fail 'apiKey is not supported' --set chat.anthropic.apiKey=ci-placeholder
           exit $status
 
 #      - name: Create kind cluster

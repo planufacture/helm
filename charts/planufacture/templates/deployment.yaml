@@ -20,19 +20,14 @@ spec:
   {{- if kindIs "map" .image }}
   {{- $image = .image }}
   {{- end }}
-  {{- $podAnnotations := deepCopy ($.Values.podAnnotations | default dict) }}
   {{- $anthropic := dict }}
   {{- if eq $key "chat" }}
   {{- include "planufacture.validateChat" (dict "root" $ "image" $image) }}
   {{- $anthropic = include "planufacture.chatAnthropic" $ | fromYaml }}
-  {{- if not $anthropic.existingSecret }}
-  {{- /* The key is read only at container start, so roll the pod when it changes. */}}
-  {{- $_ := set $podAnnotations "checksum/anthropic-api-key" ($anthropic.apiKey | toString | sha256sum) }}
-  {{- end }}
   {{- end }}
   template:
     metadata:
-      {{- with $podAnnotations }}
+      {{- with $.Values.podAnnotations }}
       annotations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
@@ -182,13 +177,8 @@ spec:
             - name: ANTHROPIC_API_KEY
               valueFrom:
                 secretKeyRef:
-                  {{- if $anthropic.existingSecret }}
                   name: {{ $anthropic.existingSecret }}
                   key: {{ $anthropic.existingSecretKey | default "anthropic-api-key" }}
-                  {{- else }}
-                  name: {{ include "planufacture.fullname" $ }}-chat-anthropic
-                  key: anthropic-api-key
-                  {{- end }}
             - name: SPRING_PROFILES_INCLUDE
               value: anthropic
             - name: MCP_SERVER_URL

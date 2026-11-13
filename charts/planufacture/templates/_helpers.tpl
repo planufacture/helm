@@ -221,7 +221,8 @@ chat image) and an Anthropic key. Takes (dict "root" $ "image" <chat image map>)
 {{- end -}}
 {{- $_ := required "microServices.chat.image.tag is required when chat is enabled (set by update-helm-chart.yaml on each planufacture-chat release)" .image.tag -}}
 {{- $anthropic := include "planufacture.chatAnthropic" $root | fromYaml -}}
-{{- if not $anthropic.existingSecret -}}
-{{- $_ := required "chat.anthropic.existingSecret, or chat.anthropic.apiKey (via HELM_VALUES), is required when microServices.chat is enabled" $anthropic.apiKey -}}
+{{- $_ := required "chat.anthropic.existingSecret is required when microServices.chat is enabled: the name of a pre-provisioned Secret holding the Anthropic API key" $anthropic.existingSecret -}}
+{{- if hasKey $anthropic "apiKey" -}}
+{{- fail "chat.anthropic.apiKey is not supported: put the key in the Secret named by chat.anthropic.existingSecret" -}}
 {{- end -}}
 {{- end }}

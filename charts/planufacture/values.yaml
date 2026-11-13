@@ -129,7 +129,7 @@ microServices:
     javaToolOptions: "-XX:MaxRAMPercentage=50.0"
   # AI assistant (planufacture-chat). The gateway routes /chat/** to it; it
   # calls mcp's tools with the user's own token, so it requires mcp enabled.
-  # Before enabling: the Anthropic key (see `chat.anthropic` below) and the
+  # Before enabling: the Anthropic key Secret (see `chat.anthropic` below) and the
   # `chat-connection-string` key in mongodb-credentials (terraform's
   # mongodb-incluster module, once `chat` is in mongodb_services) must exist,
   # or the pod fails on a missing secret key.
@@ -374,10 +374,10 @@ volumeMounts: []
 diomac: {}
 
 # Anthropic API key for microServices.chat, used only while chat is enabled.
-# Prefer anthropic.existingSecret (a pre-provisioned per-tenant Secret; key
-# defaults to `anthropic-api-key`). Otherwise set anthropic.apiKey through the
-# environment's HELM_VALUES secret and the chart creates a `-chat-anthropic`
-# Secret from it. Never put the key in a committed values file.
+# Always from a pre-provisioned per-tenant Secret: set anthropic.existingSecret
+# to its name (key defaults to `anthropic-api-key`; override with
+# anthropic.existingSecretKey). The chart never creates this Secret and
+# refuses a plain apiKey value.
 chat:
   anthropic: {}
 metrics:
