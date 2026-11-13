@@ -179,7 +179,7 @@ microServices:
     # sharing a minute slot. 0 disables. Keep well under the schedule interval.
     startJitterSeconds: 0
     image:
-      tag: 0.0.185
+      tag: 0.0.186
     mongo:
       db: diomac-connector
       existingSecret: mongodb-credentials
