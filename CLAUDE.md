@@ -43,6 +43,15 @@ Every microservice Deployment gets `topologySpreadConstraints` from `topologySpr
 
 A service is on unless it opts out: only an explicit `enabled: false` switches one off, and templates test this with the `planufacture.componentEnabled` helper rather than checking `.enabled` inline.
 
+### Chat (AI assistant)
+`microServices.chat` deploys planufacture-chat (port 9540, Service `planufacture-chat`), off by default. The gateway routes `/chat/**` to it; it has no ingress of its own.
+- **Requires mcp:** it answers from mcp's read-only tools, called with the user's own token, so the render fails if `chat` is enabled and `mcp` isn't (`MCP_SERVER_URL` is built from mcp's Service name and port). It also fails while `microServices.chat.image.tag` is unset; `update-helm-chart.yaml` sets it on each release (`service: chat`).
+- **`CHAT_ALLOWED_CLIENTS`** comes from `keycloak.existingSecret` / `gateway-client-id`, the same value as the gateway's `GATEWAY_OAUTH2_CLIENT`. It's a security control: the chat forwards tokens to mcp, so it accepts only tokens whose `azp` is the tenant's gateway client. Don't hard-code it or add other clients.
+- **Anthropic key (`ANTHROPIC_API_KEY`):** from `chat.anthropic.existingSecret` (key `existingSecretKey`, default `anthropic-api-key`), or else a chart-managed `-chat-anthropic` Secret built from `chat.anthropic.apiKey`, which must come through `HELM_VALUES`, never a committed file.
+- **Other env:** `SPRING_PROFILES_INCLUDE=anthropic` selects the model; `CHAT_REDIS_KEY_PREFIX=<namespace>:` keeps its Redis keys (conversation memory, rate limits, daily cost totals) inside the shared Redis ACL.
+- **MongoDB:** database `chat`, URI from `mongodb-credentials` / `chat-connection-string`. terraform's mongodb-incluster module adds that key once `chat` is in `mongodb_services`; enabling `chat` before then fails the pod on the missing key. Archiving is best effort, so the chat stays up if MongoDB is down. `CHAT_ARCHIVE_ENABLED` / `CHAT_ARCHIVE_RETENTION` can be overridden per environment via `env`.
+- **Access:** users need the Keycloak realm role `agent` (the chat's default `CHAT_REQUIRED_ROLE`).
+
 ### Context Merging
 Templates use a context-merging pattern to pass the current microservice key into shared helpers:
 ```

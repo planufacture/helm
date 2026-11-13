@@ -159,6 +159,39 @@ spec:
                   name: {{ $.Values.keycloak.existingSecret }}
                   key: gateway-client-id
             {{- end }}
+            {{- if eq $key "chat" }}
+            {{- $mcp := $.Values.microServices.mcp }}
+            {{- if not (and $mcp (include "planufacture.componentEnabled" $mcp)) }}
+            {{- fail "microServices.chat requires microServices.mcp to be enabled: the chat gets all its data through mcp's tools" }}
+            {{- end }}
+            {{- $_ := required "microServices.chat.image.tag is required when chat is enabled (set by update-helm-chart.yaml on each planufacture-chat release)" (dig "image" "tag" "" .) }}
+            {{- $anthropic := dig "anthropic" dict ($.Values.chat | default dict) }}
+            # The chat passes the user's token on to mcp, so it accepts only
+            # tokens issued to the tenant's own gateway client (azp). Same
+            # secret and key as the gateway's GATEWAY_OAUTH2_CLIENT.
+            - name: CHAT_ALLOWED_CLIENTS
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $.Values.keycloak.existingSecret }}
+                  key: gateway-client-id
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  {{- if $anthropic.existingSecret }}
+                  name: {{ $anthropic.existingSecret }}
+                  key: {{ $anthropic.existingSecretKey | default "anthropic-api-key" }}
+                  {{- else }}
+                  name: {{ include "planufacture.fullname" $ }}-chat-anthropic
+                  key: api-key
+                  {{- end }}
+            - name: SPRING_PROFILES_INCLUDE
+              value: anthropic
+            - name: MCP_SERVER_URL
+              value: "http://{{ include "planufacture.name" (merge (dict "key" "mcp") $) }}:{{ $mcp.service.port | default $.Values.service.port }}"
+            # The shared redis ACL only permits "<namespace>:*" keys.
+            - name: CHAT_REDIS_KEY_PREFIX
+              value: "{{ $.Release.Namespace }}:"
+            {{- end }}
             {{- if .redis }}
             # Sentinel discovery: Lettuce connects to a sentinel on port
             # 26379 to find the current master, then talks to the master
