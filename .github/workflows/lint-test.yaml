@@ -115,6 +115,53 @@ jobs:
           [ "$off" = "0" ] || { echo "::error::topologySpread.enabled=false still rendered $off"; status=1; }
           exit $status
 
+      # chat is off by default, so ct lint never renders it. Render it on and
+      # check its env and secret references, and that each missing dependency
+      # (mcp, image tag, Anthropic Secret) fails the render.
+      - name: Check chat renders with its dependencies
+        run: |
+          render() {
+            helm template ci charts/planufacture -n ci-ns \
+              --set application.environment=ci --set configuration=ci --set diomac.key=ci \
+              --set microServices.chat.enabled=true --set microServices.chat.image.tag=0.0.0-ci \
+              --set microServices.mcp.enabled=true "$@"
+          }
+          status=0
+          out=$(render)
+          env=$(yq 'select(.kind=="Deployment" and .metadata.name=="ci-planufacture-chat")
+            | .spec.template.spec.containers[0].env[]
+            | .name + "=" + (.value // (.valueFrom.secretKeyRef.name + "/" + .valueFrom.secretKeyRef.key))' <<<"$out")
+          for want in \
+            "CHAT_ALLOWED_CLIENTS=keycloak-credentials/gateway-client-id" \
+            "ANTHROPIC_API_KEY=anthropic-credentials/anthropic-api-key" \
+            "SPRING_PROFILES_INCLUDE=anthropic" \
+            "MCP_SERVER_URL=http://planufacture-mcp:9510" \
+            "CHAT_REDIS_KEY_PREFIX=ci-ns:" \
+            "SPRING_MONGODB_URI=mongodb-credentials/chat-connection-string" \
+            "SPRING_DATA_REDIS_PASSWORD=redis-credentials/password"; do
+            grep -qxF "$want" <<<"$env" || { echo "::error::chat Deployment is missing $want"; status=1; }
+          done
+          # the chart must never create a Secret holding the key
+          grep -qi 'anthropic' <<<"$(yq 'select(.kind=="Secret") | .metadata.name' <<<"$out")" \
+            && { echo "::error::chart rendered an Anthropic Secret"; status=1; }
+          # an environment can still point at its own Secret
+          render --set chat.anthropic.existingSecret=ci-anthropic | grep -qF 'name: ci-anthropic' \
+            || { echo "::error::chat.anthropic.existingSecret override not used"; status=1; }
+          expect_fail() {
+            local want=$1; shift
+            if err=$(render "$@" 2>&1); then
+              echo "::error::chat rendered with $*"; status=1
+            else
+              grep -qF "$want" <<<"$err" || { echo "::error::chat with $* failed for another reason: $err"; status=1; }
+            fi
+          }
+          expect_fail 'requires microServices.mcp' --set microServices.mcp.enabled=false
+          # without a tag the image would fall back to appVersion (the UI's)
+          expect_fail 'image.tag is required' --set microServices.chat.image.tag=
+          expect_fail 'existingSecret is required' --set chat.anthropic.existingSecret=
+          expect_fail 'apiKey is not supported' --set chat.anthropic.apiKey=ci-placeholder
+          exit $status
+
 #      - name: Create kind cluster
 #        uses: helm/kind-action@0025e74a8c7512023d06dc019c617aa3cf561fde # v1.10.0
 #        if: steps.list-changed.outputs.changed == 'true'

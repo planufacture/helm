@@ -14,6 +14,17 @@ spec:
   selector:
     matchLabels:
       {{- include "planufacture.selectorLabels" $context | nindent 6 }}
+  {{- /* `image` may be absent or null; without this the repository default on
+         the container's image is unreachable and rendering dies on a nil pointer. */}}
+  {{- $image := dict }}
+  {{- if kindIs "map" .image }}
+  {{- $image = .image }}
+  {{- end }}
+  {{- $anthropic := dict }}
+  {{- if eq $key "chat" }}
+  {{- include "planufacture.validateChat" (dict "root" $ "image" $image) }}
+  {{- $anthropic = include "planufacture.chatAnthropic" $ | fromYaml }}
+  {{- end }}
   template:
     metadata:
       {{- with $.Values.podAnnotations }}
@@ -40,12 +51,6 @@ spec:
           command: ['sh', '-c', 'until wget -qO- http://{{ include "planufacture.name" $ }}-config-server:8888/actuator/health > /dev/null 2>&1; do echo "Waiting for config-server..."; sleep 5; done;']
       {{- end }}
       containers:
-        {{- /* `image` may be absent or null; without this the repository default below
-               is unreachable and rendering dies on a nil pointer. */}}
-        {{- $image := dict }}
-        {{- if kindIs "map" .image }}
-        {{- $image = .image }}
-        {{- end }}
         - name: {{ $.Chart.Name }}-{{ $key | kebabcase }}
           securityContext:
             {{- toYaml $.Values.securityContext | nindent 12 }}
@@ -158,6 +163,29 @@ spec:
                 secretKeyRef:
                   name: {{ $.Values.keycloak.existingSecret }}
                   key: gateway-client-id
+            {{- end }}
+            {{- if eq $key "chat" }}
+            {{- $mcp := $.Values.microServices.mcp }}
+            # The chat passes the user's token on to mcp, so it accepts only
+            # tokens issued to the tenant's own gateway client (azp). Same
+            # secret and key as the gateway's GATEWAY_OAUTH2_CLIENT.
+            - name: CHAT_ALLOWED_CLIENTS
+              valueFrom:
+                secretKeyRef:
+                  name: {{ required "keycloak.existingSecret is required when microServices.chat is enabled (CHAT_ALLOWED_CLIENTS)" $.Values.keycloak.existingSecret }}
+                  key: gateway-client-id
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $anthropic.existingSecret }}
+                  key: {{ $anthropic.existingSecretKey | default "anthropic-api-key" }}
+            - name: SPRING_PROFILES_INCLUDE
+              value: anthropic
+            - name: MCP_SERVER_URL
+              value: "http://{{ include "planufacture.name" (merge (dict "key" "mcp") $) }}:{{ $mcp.service.port | default $.Values.service.port }}"
+            # The shared redis ACL only permits "<namespace>:*" keys.
+            - name: CHAT_REDIS_KEY_PREFIX
+              value: "{{ $.Release.Namespace }}:"
             {{- end }}
             {{- if .redis }}
             # Sentinel discovery: Lettuce connects to a sentinel on port

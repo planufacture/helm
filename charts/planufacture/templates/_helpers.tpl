@@ -197,3 +197,32 @@ Create the name of the service account to use
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
 {{- end }}
+
+{{/*
+chat's Anthropic settings (.Values.chat.anthropic) as YAML, {} when unset or
+null. Callers: `include "planufacture.chatAnthropic" $ | fromYaml`.
+*/}}
+{{- define "planufacture.chatAnthropic" -}}
+{{- $chat := .Values.chat | default dict -}}
+{{- toYaml (dig "anthropic" dict $chat | default dict) -}}
+{{- end }}
+
+{{/*
+Fails the render when microServices.chat is enabled without what it needs:
+mcp (its only source of data, with a Service to call), an image tag (else the
+container falls back to the chart's appVersion, the UI version, which has no
+chat image) and an Anthropic key. Takes (dict "root" $ "image" <chat image map>).
+*/}}
+{{- define "planufacture.validateChat" -}}
+{{- $root := .root -}}
+{{- $mcp := $root.Values.microServices.mcp -}}
+{{- if not (and (kindIs "map" $mcp) (include "planufacture.componentEnabled" $mcp) $mcp.service) -}}
+{{- fail "microServices.chat requires microServices.mcp to be enabled, with a service: the chat gets all its data through mcp's tools" -}}
+{{- end -}}
+{{- $_ := required "microServices.chat.image.tag is required when chat is enabled (set by update-helm-chart.yaml on each planufacture-chat release)" .image.tag -}}
+{{- $anthropic := include "planufacture.chatAnthropic" $root | fromYaml -}}
+{{- $_ := required "chat.anthropic.existingSecret is required when microServices.chat is enabled: the name of a pre-provisioned Secret holding the Anthropic API key" $anthropic.existingSecret -}}
+{{- if hasKey $anthropic "apiKey" -}}
+{{- fail "chat.anthropic.apiKey is not supported: put the key in the Secret named by chat.anthropic.existingSecret" -}}
+{{- end -}}
+{{- end }}
