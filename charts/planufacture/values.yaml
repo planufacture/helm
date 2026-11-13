@@ -137,6 +137,8 @@ microServices:
     enabled: false
     # image.tag is set by update-helm-chart.yaml on each planufacture-chat
     # release; the render fails if chat is enabled before there is one.
+    image:
+      tag: 0.0.1
     service:
       port: 9540
     metrics:
@@ -213,9 +215,6 @@ microServices:
       limits:
         memory: 1Gi
     javaToolOptions: "-XX:MaxRAMPercentage=75.0"
-  chat:
-    image:
-      tag: 0.0.1
 busybox:
   image:
     repository: 503561419401.dkr.ecr.eu-west-1.amazonaws.com/docker-hub/library/busybox
@@ -412,6 +411,7 @@ metrics:
 nodeSelector: {}
 tolerations: []
 affinity: {}
+
 # Spreads each microservice Deployment's replicas across nodes and zones. The
 # scheduler's built-in spreading is only a weak score: on a rollout that
 # coincides with a new, empty node, every replica can land on that one node,
