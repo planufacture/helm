@@ -137,6 +137,8 @@ microServices:
     enabled: false
     # image.tag is set by update-helm-chart.yaml on each planufacture-chat
     # release; the render fails if chat is enabled before there is one.
+    image:
+      tag: 0.0.1
     service:
       port: 9540
     metrics:
