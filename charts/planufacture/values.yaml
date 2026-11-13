@@ -127,6 +127,33 @@ microServices:
       limits:
         memory: 640Mi
     javaToolOptions: "-XX:MaxRAMPercentage=50.0"
+  # AI assistant (planufacture-chat). The gateway routes /chat/** to it; it
+  # calls mcp's tools with the user's own token, so it requires mcp enabled.
+  # Before enabling: the Anthropic key Secret (see `chat.anthropic` below) and the
+  # `chat-connection-string` key in mongodb-credentials (terraform's
+  # mongodb-incluster module, once `chat` is in mongodb_services) must exist,
+  # or the pod fails on a missing secret key.
+  chat:
+    enabled: false
+    # image.tag is set by update-helm-chart.yaml on each planufacture-chat
+    # release; the render fails if chat is enabled before there is one.
+    service:
+      port: 9540
+    metrics:
+      enabled: true
+    redis: true
+    mongo:
+      db: chat
+      existingSecret: mongodb-credentials
+      existingSecretKey: chat-connection-string
+    # Unmeasured; sized like mcp until there are metrics.
+    resources:
+      requests:
+        cpu: 100m
+        memory: 640Mi
+      limits:
+        memory: 640Mi
+    javaToolOptions: "-XX:MaxRAMPercentage=50.0"
   diomacConnector:
     # Diomac is a per-customer integration. Set `enabled: false` for tenants
     # that don't use it — the CronJob, the -diomac Secret (and so the
@@ -348,6 +375,14 @@ volumeMounts: []
 # domain service. `diomac.key` is required only while
 # microServices.diomacConnector.enabled is true.
 diomac: {}
+
+# Anthropic API key for microServices.chat, used only while chat is enabled.
+# Always from a pre-provisioned per-tenant Secret in the release namespace.
+# The chart never creates it and refuses a plain apiKey value.
+chat:
+  anthropic:
+    existingSecret: anthropic-credentials
+    existingSecretKey: anthropic-api-key
 metrics:
   # Creates a ServiceMonitor for each service with `metrics.enabled: true`.
   # Skipped when the cluster has no ServiceMonitor CRD (Prometheus Operator).
