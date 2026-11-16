@@ -1,0 +1,7 @@
+{{- /*
+Renders nothing. Fails the render for values that used to do something and
+were removed, so an old values file errors instead of being silently ignored.
+*/}}
+{{- if dig "mongo" "enabled" false (.Values | toYaml | fromYaml) }}
+{{- fail "mongo.enabled is no longer supported: the chart no longer runs MongoDB. Point each service at its connection-string Secret with microServices.<name>.mongo.existingSecret / existingSecretKey (normally mongodb-credentials, from terraform's mongodb-incluster module) and remove mongo.enabled." }}
+{{- end }}
