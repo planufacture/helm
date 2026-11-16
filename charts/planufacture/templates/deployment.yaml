@@ -80,7 +80,7 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: {{ required (printf "microServices.%s.mongo.existingSecret is required" $key) $mongo.existingSecret }}
-                  key: {{ $mongo.existingSecretKey | default "mongo-uri" }}
+                  key: {{ required (printf "microServices.%s.mongo.existingSecretKey is required" $key) $mongo.existingSecretKey }}
             {{- end }}
             {{- end }}
             {{- if .rabbit }}

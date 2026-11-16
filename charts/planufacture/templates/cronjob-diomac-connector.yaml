@@ -95,7 +95,7 @@ spec:
                   valueFrom:
                     secretKeyRef:
                       name: {{ required "microServices.diomacConnector.mongo.existingSecret is required" $dc.mongo.existingSecret }}
-                      key: {{ $dc.mongo.existingSecretKey | default "mongo-uri" }}
+                      key: {{ required "microServices.diomacConnector.mongo.existingSecretKey is required" $dc.mongo.existingSecretKey }}
                 {{- end }}
                 - name: DIOMAC_API_KEY
                   valueFrom:
