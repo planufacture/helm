@@ -226,3 +226,40 @@ chat image) and an Anthropic key. Takes (dict "root" $ "image" <chat image map>)
 {{- fail "chat.anthropic.apiKey is not supported: put the key in the Secret named by chat.anthropic.existingSecret" -}}
 {{- end -}}
 {{- end }}
+
+{{/*
+storageClassName for each Axon Server volumeClaimTemplate, as YAML: a map of
+storage key (events / logs / data) to class. A key is present only when
+storageClassName should be rendered for that volume.
+
+volumeClaimTemplates are immutable, so when the release's Axon StatefulSet
+already exists (`existing`, from lookup) each volume keeps exactly what that
+StatefulSet has: its class if it set one, otherwise no key. Only a new
+StatefulSet takes axonserver.storage.className. lookup is empty under
+`helm template` and client-side dry runs, which therefore show the new-
+StatefulSet result.
+*/}}
+{{- define "planufacture.axonserverStorageClasses" -}}
+{{- $root := .root }}
+{{- $fullname := include "planufacture.fullname" $root }}
+{{- $classNames := $root.Values.axonserver.storage.className | default dict }}
+{{- if not (kindIs "map" $classNames) }}
+{{- fail "axonserver.storage.className must be a map of events / logs / data to a StorageClass name" }}
+{{- end }}
+{{- $out := dict }}
+{{- range $key, $suffix := dict "events" "events" "logs" "log" "data" "data" }}
+{{- $pvc := printf "%s-axonserver-%s" $fullname $suffix }}
+{{- if $.existing }}
+{{- range $t := ($.existing.spec.volumeClaimTemplates | default list) }}
+{{- if and (eq $t.metadata.name $pvc) (hasKey $t.spec "storageClassName") (not (kindIs "invalid" $t.spec.storageClassName)) }}
+{{- $_ := set $out $key $t.spec.storageClassName }}
+{{- end }}
+{{- end }}
+{{- else }}
+{{- with get $classNames $key }}
+{{- $_ := set $out $key . }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- toYaml $out }}
+{{- end }}
