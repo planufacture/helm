@@ -162,6 +162,43 @@ jobs:
           expect_fail 'apiKey is not supported' --set chat.anthropic.apiKey=ci-placeholder
           exit $status
 
+      # Axon Server's volume classes. CI has no cluster, so lookup finds no
+      # StatefulSet and this is the new-StatefulSet path. Keeping an existing
+      # StatefulSet's (immutable) volumeClaimTemplates needs a cluster to
+      # check: `helm template <release> -n <ns> --dry-run=server`.
+      - name: Check Axon Server volume storage classes
+        run: |
+          render() {
+            helm template ci charts/planufacture \
+              --set application.environment=ci --set configuration=ci --set diomac.key=ci \
+              --set axonserver.enabled=true -s templates/stateful-set-axonserver.yaml "$@"
+          }
+          classes() {
+            yq -r 'select(.kind=="StatefulSet") | [.spec.volumeClaimTemplates[]
+              | (.metadata.name | sub("^ci-planufacture-axonserver-"; "")) + "=" + (.spec.storageClassName // "none")]
+              | join(",")'
+          }
+          status=0
+          check() {
+            local want=$1; shift
+            local got
+            got=$(render "$@" | classes)
+            [ "$got" = "$want" ] || { echo "::error::with $* want $want, got $got"; status=1; }
+          }
+          check "events=gp3-xfs-backup,log=none,data=gp3-xfs-backup"
+          check "events=none,log=gp3-backup,data=gp3-xfs-backup" \
+            --set axonserver.storage.className.events= --set axonserver.storage.className.logs=gp3-backup
+          # blank means no storageClassName key at all, never "" (which is "no class")
+          if render --set axonserver.storage.className.events= | grep -q 'storageClassName: ""'; then
+            echo "::error::a blank class rendered storageClassName: \"\""; status=1
+          fi
+          if err=$(render --set axonserver.storage.className=gp3 2>&1); then
+            echo "::error::a string axonserver.storage.className rendered"; status=1
+          else
+            grep -qF 'must be a map' <<<"$err" || { echo "::error::string className failed for another reason: $err"; status=1; }
+          fi
+          exit $status
+
 #      - name: Create kind cluster
 #        uses: helm/kind-action@0025e74a8c7512023d06dc019c617aa3cf561fde # v1.10.0
 #        if: steps.list-changed.outputs.changed == 'true'

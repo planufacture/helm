@@ -1,5 +1,7 @@
 {{- if .Values.axonserver.enabled}}
 {{- $context := merge (dict "key" "axonserver") $ }}
+{{- $existing := lookup "apps/v1" "StatefulSet" .Release.Namespace (include "planufacture.fullname" $context) }}
+{{- $classes := include "planufacture.axonserverStorageClasses" (dict "root" $ "existing" $existing) | fromYaml }}
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -110,6 +112,9 @@ spec:
         name: {{ include "planufacture.fullname" . }}-axonserver-events
       spec:
         accessModes: [ "ReadWriteOnce" ]
+        {{- if hasKey $classes "events" }}
+        storageClassName: {{ get $classes "events" | quote }}
+        {{- end }}
         resources:
           requests:
             storage: {{ .Values.axonserver.storage.events | default "5Gi" }}
@@ -117,6 +122,9 @@ spec:
         name: {{ include "planufacture.fullname" . }}-axonserver-log
       spec:
         accessModes: [ "ReadWriteOnce" ]
+        {{- if hasKey $classes "logs" }}
+        storageClassName: {{ get $classes "logs" | quote }}
+        {{- end }}
         resources:
           requests:
             storage: {{ .Values.axonserver.storage.logs | default "1Gi" }}
@@ -124,6 +132,9 @@ spec:
         name: {{ include "planufacture.fullname" . }}-axonserver-data
       spec:
         accessModes: [ "ReadWriteOnce" ]
+        {{- if hasKey $classes "data" }}
+        storageClassName: {{ get $classes "data" | quote }}
+        {{- end }}
         resources:
           requests:
             storage: {{ .Values.axonserver.storage.data | default "1Gi" }}

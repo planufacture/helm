@@ -242,6 +242,17 @@ axonserver:
     events: 5Gi
     logs: 1Gi
     data: 1Gi
+    # StorageClass per volume (events / logs / data). Only a NEW StatefulSet
+    # uses these: volumeClaimTemplates are immutable, so when the release's
+    # Axon StatefulSet already exists the template looks it up and keeps
+    # each volume's current class (none, on every release created before
+    # this). An empty value renders no storageClassName (cluster default).
+    # gp3-xfs-backup is xfs (no 5% root reservation; Axon runs non-root),
+    # reclaim Retain, tagged backup=enabled for AWS Backup.
+    className:
+      events: gp3-xfs-backup
+      logs: ""
+      data: gp3-xfs-backup
   properties: ""
   resources:
     limits:
