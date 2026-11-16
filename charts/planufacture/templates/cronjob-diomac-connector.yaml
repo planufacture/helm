@@ -48,9 +48,8 @@ spec:
             runAsUser: 999
             fsGroup: 999
           restartPolicy: Never
-          {{- if or $.Values.mongo.enabled (gt $jitter 0) }}
+          {{- if gt $jitter 0 }}
           initContainers:
-            {{- if gt $jitter 0 }}
             # Random delay to spread tenants that share a schedule slot
             - name: start-jitter
               image: "{{ $.Values.busybox.image.repository }}:{{ $.Values.busybox.image.tag }}"
@@ -60,12 +59,6 @@ spec:
                 capabilities:
                   drop:
                     - ALL
-            {{- end }}
-            {{- if $.Values.mongo.enabled }}
-            - name: wait-mongo
-              image: "{{ $.Values.busybox.image.repository }}:{{ $.Values.busybox.image.tag }}"
-              command: ['sh', '-c', 'until nc -z -v -w30 mongo 27017; do echo "Waiting for mongo..."; sleep 2; done;']
-            {{- end }}
           {{- end }}
           containers:
             {{- $image := dict }}
@@ -101,15 +94,8 @@ spec:
                 - name: {{ $envName }}
                   valueFrom:
                     secretKeyRef:
-                      {{- if $dc.mongo.existingSecret }}
-                      name: {{ $dc.mongo.existingSecret }}
+                      name: {{ required "microServices.diomacConnector.mongo.existingSecret is required" $dc.mongo.existingSecret }}
                       key: {{ $dc.mongo.existingSecretKey | default "mongo-uri" }}
-                      {{- else if $.Values.mongo.enabled }}
-                      name: {{ include "planufacture.fullname" $ }}-diomac-connector
-                      key: mongo-uri
-                      {{- else }}
-                      {{ required "microServices.diomacConnector.mongo.existingSecret is required when mongo.enabled is false" $dc.mongo.existingSecret }}
-                      {{- end }}
                 {{- end }}
                 - name: DIOMAC_API_KEY
                   valueFrom:

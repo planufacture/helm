@@ -79,15 +79,8 @@ spec:
             - name: {{ $envName }}
               valueFrom:
                 secretKeyRef:
-                  {{- if $mongo.existingSecret }}
-                  name: {{ $mongo.existingSecret }}
+                  name: {{ required (printf "microServices.%s.mongo.existingSecret is required" $key) $mongo.existingSecret }}
                   key: {{ $mongo.existingSecretKey | default "mongo-uri" }}
-                  {{- else if $.Values.mongo.enabled }}
-                  name: {{ include "planufacture.fullname" $context }}
-                  key: mongo-uri
-                  {{- else }}
-                  {{ required (printf "microServices.%s.mongo.existingSecret is required when mongo.enabled is false" $key) $mongo.existingSecret }}
-                  {{- end }}
             {{- end }}
             {{- end }}
             {{- if .rabbit }}

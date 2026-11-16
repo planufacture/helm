@@ -39,7 +39,7 @@ Create chart name and version as used by the chart label.
 Version label for a component.
 
 Resolves to the component's OWN image tag (microServices.<key>.image.tag, or
-<key>.image.tag for mongo/axonserver) and only falls back to .Chart.AppVersion
+<key>.image.tag for axonserver) and only falls back to .Chart.AppVersion
 when the component has no tag of its own. Set "versionKey" in the context to point
 at a different component's tag (e.g. the axonserver-gui Service reports axonserver's).
 
@@ -51,8 +51,7 @@ needlessly roll every Deployment and StatefulSet.
 {{- $version := .Chart.AppVersion -}}
 {{- $key := default .key .versionKey -}}
 {{- if $key -}}
-{{/* Some callers pass a kebab-cased key (secret-mongo-micro-services.yaml,
-     job-mongo-accounts.yaml, stateful-set-mongo.yaml), so try both spellings. */}}
+{{/* A caller may pass a kebab-cased key, so try both spellings. */}}
 {{- $camelKey := $key | camelcase | untitle -}}
 {{- $component := "" -}}
 {{- range $candidate := list (index .Values.microServices $key) (index .Values.microServices $camelKey) (index .Values $key) -}}

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-Single Helm chart (`charts/planufacture/`) deploying a microservices-based Kubernetes application. The chart manages multiple microservices (UI, domain, gateway, configServer, diomacConnector), optional MongoDB and AxonServer StatefulSets, secrets, ingress, and CronJobs.
+Single Helm chart (`charts/planufacture/`) deploying a microservices-based Kubernetes application. The chart manages multiple microservices (UI, domain, gateway, configServer, diomacConnector), an optional AxonServer StatefulSet, secrets, ingress, and CronJobs. MongoDB is external (terraform's shared in-cluster replica set); the chart only references connection-string Secrets.
 
 ## Commands
 
@@ -37,7 +37,7 @@ There is no Makefile or package.json. All CI automation is in GitHub Actions wor
 ## Architecture
 
 ### Multi-Service Template Pattern
-The core design pattern is a **single deployment template** (`templates/deployment.yaml`) that loops over `values.microServices` to generate one Deployment per service. The same pattern applies to `service.yaml` and `secret-mongo-micro-services.yaml`. Each microservice entry in values can declare `.service`, `.mongo`, `.rabbit`, `.axon` flags to conditionally attach environment variables and dependencies. Per-service `resources` can be set with a fallback to the global `resources` default. Every component ships a default `resources` block in `values.yaml` (memory request = limit, CPU request only); env overrides deep-merge onto it, so an override must set both request and limit for memory. JVM services also set `javaToolOptions` (rendered as `JAVA_TOOL_OPTIONS` unless the service's `env` already defines it) to raise `MaxRAMPercentage`, because the images set no heap flags and the JVM default is 25% of the limit.
+The core design pattern is a **single deployment template** (`templates/deployment.yaml`) that loops over `values.microServices` to generate one Deployment per service. The same pattern applies to `service.yaml`. Each microservice entry in values can declare `.service`, `.mongo`, `.rabbit`, `.axon` flags to conditionally attach environment variables and dependencies. Per-service `resources` can be set with a fallback to the global `resources` default. Every component ships a default `resources` block in `values.yaml` (memory request = limit, CPU request only); env overrides deep-merge onto it, so an override must set both request and limit for memory. JVM services also set `javaToolOptions` (rendered as `JAVA_TOOL_OPTIONS` unless the service's `env` already defines it) to raise `MaxRAMPercentage`, because the images set no heap flags and the JVM default is 25% of the limit.
 
 Every microservice Deployment gets `topologySpreadConstraints` from `topologySpread.constraints`: node skew of at most 1 (hard, `DoNotSchedule`, so 2 replicas never share a node) and spread across zones (soft, `ScheduleAnyway`). The template adds the service's own selector labels as `labelSelector` and `matchLabelKeys: [pod-template-hash]` to any constraint that doesn't set them. `microServices.<name>.topologySpreadConstraints` replaces the defaults for one service (`[]` for none), and `topologySpread.enabled: false` drops the defaults (per-service overrides still apply). The StatefulSets (Axon Server, Mongo) and the diomac CronJob don't get them.
 
@@ -61,14 +61,10 @@ Templates use a context-merging pattern to pass the current microservice key int
 This allows `_helpers.tpl` functions to append the service key as a suffix for unique resource naming.
 
 ### Helm Hooks
-- **pre-install/pre-upgrade**: MongoDB root secret and per-microservice secrets (only when `mongo.enabled: true`)
-- **post-install/post-upgrade**: Job that creates MongoDB user accounts per microservice (only when `mongo.enabled: true`)
 - **test**: Connection test to the UI service
 
-### MongoDB (Optional)
-Controlled by `mongo.enabled`. When enabled, deploys a MongoDB 8 replica set StatefulSet with keyfile auth, configurable storage class (`mongo.storageClassName`, default `gp3-xfs-backup`), liveness/readiness probes, and auto-creates per-microservice database users. Image is parameterized via `mongo.image.repository`/`mongo.image.tag`.
-
-When disabled (e.g. using MongoDB Atlas), each microservice with `.mongo` must provide `.mongo.existingSecret` and `.mongo.existingSecretKey` pointing to a pre-created Kubernetes secret containing the connection URI. The chart will fail with a clear error if `existingSecret` is missing when `mongo.enabled: false`.
+### MongoDB (external)
+The chart does not run MongoDB (the in-chart StatefulSet and its `mongo.*` values were removed; no environment used them). Each microservice with `.mongo` must provide `.mongo.existingSecret` and `.mongo.existingSecretKey` pointing to a Secret holding the connection URI, normally `mongodb-credentials`, written by terraform's mongodb-incluster module. The render fails with a clear error if `existingSecret` is missing.
 
 ### AxonServer
 Event sourcing server with separate PVCs for data, events, and logs. Controlled by `axonserver.enabled`. **Note**: StatefulSet `volumeClaimTemplates` are immutable — storage sizes cannot be changed via `helm upgrade`. Resize existing PVCs with `kubectl patch pvc` instead.
@@ -76,7 +72,7 @@ Event sourcing server with separate PVCs for data, events, and logs. Controlled 
 Volume StorageClasses come from `axonserver.storage.className.events|logs|data` (default `gp3-xfs-backup` for events and data, cluster default for logs; empty renders no `storageClassName`). Because the templates are immutable, `stateful-set-axonserver.yaml` `lookup`s the release's existing Axon StatefulSet and, if there is one, keeps each volume's class exactly as it is: every release created before this has none, so their upgrades render unchanged. Only a new StatefulSet takes the values. `lookup` is empty under `helm template` and client-side dry runs, so check an existing release with `helm template <release> charts/planufacture -n <ns> --dry-run=server`. To move an existing environment onto the new template: `kubectl delete sts <release>-planufacture-axonserver --cascade=orphan -n <ns>`, then `helm upgrade` recreates it with the configured classes while the pod and PVCs stay; the existing PVCs keep their class (`gp3`), only PVCs created afterwards get the new one.
 
 ### CronJobs
-- **Diomac Connector**: Schedule and timezone are configurable via `microServices.diomacConnector.schedule` and `.timeZone`. The `wait-mongo` init container is only included when `mongo.enabled: true`. Diomac is a per-customer integration: set `microServices.diomacConnector.enabled: false` for tenants that don't use it and the CronJob, the `-diomac` Secret (so `diomac.key` is no longer required) and domain's `ADMIN_DIOMAC_API_KEY` are all omitted. Defaults to `true`.
+- **Diomac Connector**: Schedule and timezone are configurable via `microServices.diomacConnector.schedule` and `.timeZone`. Diomac is a per-customer integration: set `microServices.diomacConnector.enabled: false` for tenants that don't use it and the CronJob, the `-diomac` Secret (so `diomac.key` is no longer required) and domain's `ADMIN_DIOMAC_API_KEY` are all omitted. Defaults to `true`.
 - **Diomac schedule staggering**: every tenant shares the same schedule, so a `*/N` minute field is rewritten to `<offset>-59/N`, with the offset taken from a hash of the release namespace (stable across upgrades). This stops all tenants hitting mongo in the same minute. Pin a tenant's slot with `diomacConnector.scheduleOffset`, or turn rewriting off with `staggerSchedule: false`. `startJitterSeconds` (default 0) adds a `start-jitter` init container that sleeps a random 0..N-1 seconds, to spread tenants that land in the same slot.
 
 ### Monitoring
