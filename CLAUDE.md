@@ -52,6 +52,15 @@ A service is on unless it opts out: only an explicit `enabled: false` switches o
 - **MongoDB:** database `chat`, URI from `mongodb-credentials` / `chat-connection-string`. terraform's mongodb-incluster module adds that key once `chat` is in `mongodb_services`; enabling `chat` before then fails the pod on the missing key. Archiving is best effort, so the chat stays up if MongoDB is down. `CHAT_ARCHIVE_ENABLED` / `CHAT_ARCHIVE_RETENTION` can be overridden per environment via `env`.
 - **Access:** users need the Keycloak realm role `agent` (the chat's default `CHAT_REQUIRED_ROLE`).
 
+### UI connector
+`microServices.uiConnector` deploys planufacture/ui-connector (Next.js, port 3000, Service `planufacture-ui-connector`), which stands in for the Diomac connector for customers who don't run Diomac. Off by default.
+- **Enabling:** turn it on per environment in that environment's values, together with the gateway's `/connector` route on that environment's config branch. Without the route, `/connector` falls through to ui's catch-all.
+- **No ingress of its own:** the gateway routes `/connector` and `/connector/**` to it and does the login, so the pod has no Keycloak client or secrets.
+- **Probes** use `/connector/api/health`, not `/`: the app is served under basePath `/connector`, so `/` is a 404. The health route needs no login.
+- **Image tag:** `update-helm-chart.yaml` sets `image.tag` on each ui-connector release (service key `uiConnector`). The `0.0.1` placeholder exists because an empty tag falls back to the chart's `appVersion`, which is ui's version, and no ui-connector image has that tag. Unlike ui, its releases don't touch `appVersion`.
+- **Memory** is unmeasured (ui peaks ~64Mi); lower it once there are metrics.
+- **File ownership:** the image's files belong to UID 1001 (`nextjs`), but the chart runs as 65532. The app files are world-readable, but `/app/.next` isn't writable. The app shouldn't need it (no image optimisation or server-side fetch cache). If the pod logs `EACCES` on `.next/cache`, mount an `emptyDir` at `/app/.next/cache` via the entry's `volumes` / `volumeMounts`.
+
 ### Context Merging
 Templates use a context-merging pattern to pass the current microservice key into shared helpers:
 ```

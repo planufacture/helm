@@ -58,6 +58,45 @@ microServices:
       httpGet:
         path: /
         port: http
+  # Stock-movement UI for customers without Diomac (planufacture/ui-connector).
+  # The gateway routes /connector/** to it. Off until an environment needs it:
+  # enable it per environment, together with the gateway route in that
+  # environment's config.
+  uiConnector:
+    enabled: false
+    image:
+      # The chart would otherwise default to planufacture/planufacture-ui-connector.
+      repository: planufacture/ui-connector
+      # Set by update-helm-chart.yaml on each ui-connector release. Without a
+      # tag, the image falls back to the chart's appVersion, which is the ui's
+      # version, and no ui-connector image has that tag.
+      tag: 0.0.1
+    # Node 26 (Next.js standalone). Unmeasured: ui peaks at ~64Mi, so this
+    # starts at twice ui's size. Lower it once there are metrics.
+    resources:
+      requests:
+        cpu: 50m
+        memory: 256Mi
+      limits:
+        memory: 256Mi
+    service:
+      port: 3000
+    # Served under basePath /connector, so `/` is a 404. The health route
+    # answers at request time with no login.
+    startupProbe:
+      httpGet:
+        path: /connector/api/health
+        port: http
+      failureThreshold: 10
+      periodSeconds: 5
+    livenessProbe:
+      httpGet:
+        path: /connector/api/health
+        port: http
+    readinessProbe:
+      httpGet:
+        path: /connector/api/health
+        port: http
   configServer:
     image:
       tag: 0.0.15
