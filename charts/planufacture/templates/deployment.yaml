@@ -68,11 +68,12 @@ spec:
                   key: active
             - name: SPRING_CLOUD_CONFIG_LABEL
               value: {{ required "A valid .Values.application.environment is required" $.Values.application.environment }}
-            {{- /* ui is Node, not a JVM: it gets no JAVA_TOOL_OPTIONS */}}
-            {{- $jto := ternary "" (include "planufacture.javaToolOptions" (dict "root" $ "opts" .javaToolOptions)) (eq $key "ui") }}
-            {{- if and $jto (not (include "planufacture.envHasName" (dict "env" .env "name" "JAVA_TOOL_OPTIONS"))) }}
+            {{- if and .javaToolOptions (not (include "planufacture.envHasName" (dict "env" .env "name" "JAVA_TOOL_OPTIONS"))) }}
             - name: JAVA_TOOL_OPTIONS
-              value: {{ $jto | quote }}
+              value: {{ .javaToolOptions | quote }}
+            {{- end }}
+            {{- with (include "planufacture.jvmSecurityEnv" (dict "root" $ "env" .env "component" $key)) }}
+            {{- . | nindent 12 }}
             {{- end }}
             {{- if .mongo }}
             {{- $mongo := .mongo }}

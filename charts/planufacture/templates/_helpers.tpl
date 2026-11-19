@@ -156,25 +156,36 @@ holds a variable of that name. Used so a chart-provided variable such as
 JAVA_TOOL_OPTIONS steps aside for an env's own `env` entry instead of
 rendering a duplicate name.
 */}}
-{{/*
-JAVA_TOOL_OPTIONS for a JVM component: the global jvmSecurityOptions followed by
-the component's own javaToolOptions (dict "root" $ "opts" <string>). Empty when
-both are empty. The security flags come first and are not dropped when an
-environment overrides a component's javaToolOptions.
-*/}}
-{{- define "planufacture.javaToolOptions" -}}
-{{- $parts := list -}}
-{{- with .root.Values.jvmSecurityOptions }}{{- $parts = append $parts (trim .) -}}{{- end -}}
-{{- with .opts }}{{- $parts = append $parts (trim .) -}}{{- end -}}
-{{- join " " $parts -}}
-{{- end }}
-
 {{- define "planufacture.envHasName" -}}
 {{- $name := .name -}}
 {{- if kindIs "slice" .env -}}
 {{- range .env -}}
 {{- if and (kindIs "map" .) (eq (toString .name) $name) -}}true{{- end -}}
 {{- end -}}
+{{- end -}}
+{{- end }}
+
+{{/*
+The _JAVA_OPTIONS env entry carrying .Values.jvmSecurityOptions (a string or
+a list of flags), or nothing when that is empty. Takes
+(dict "root" $ "env" <component env list> "component" <name>).
+
+_JAVA_OPTIONS rather than JAVA_TOOL_OPTIONS: HotSpot reads it itself, whatever
+the image's entrypoint, and applies it after JAVA_TOOL_OPTIONS and the command
+line. So an environment's own JAVA_TOOL_OPTIONS can't drop these flags and a
+later flag can't switch them back. An env that sets _JAVA_OPTIONS itself would
+replace them silently, so the render fails instead.
+*/}}
+{{- define "planufacture.jvmSecurityEnv" -}}
+{{- $opts := .root.Values.jvmSecurityOptions -}}
+{{- if kindIs "slice" $opts }}{{ $opts = join " " $opts }}{{ end -}}
+{{- $opts = trim (toString (default "" $opts)) -}}
+{{- if $opts -}}
+{{- if include "planufacture.envHasName" (dict "env" .env "name" "_JAVA_OPTIONS") -}}
+{{- fail (printf "%s: env sets _JAVA_OPTIONS, which would replace jvmSecurityOptions (%s). Add those flags to it and set jvmSecurityOptions: \"\" only if every component carries them." .component $opts) -}}
+{{- end -}}
+- name: _JAVA_OPTIONS
+  value: {{ $opts | quote }}
 {{- end -}}
 {{- end }}
 
