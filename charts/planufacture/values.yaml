@@ -34,8 +34,10 @@ imageRegistry: ghcr.io
 # Server. It is separate from JAVA_TOOL_OPTIONS, so neither javaToolOptions nor
 # a JAVA_TOOL_OPTIONS in a component's `env` affects it, and HotSpot applies it
 # last, so no other flag can switch it back. Non-JVM services (ui) ignore it.
-# The render fails if a component's `env` sets _JAVA_OPTIONS itself. Set to ""
-# to omit.
+# A component whose `env` sets _JAVA_OPTIONS itself keeps that value, with
+# these flags appended after it (a valueFrom there fails the render).
+# Overriding this value in an environment's values DOES change or remove the
+# mitigation there; set to "" only once every image runs a fixed JDK.
 #
 # -XX:-UseBASE64Intrinsics mitigates CVE-2026-114938 ("Java4Shell"): an
 # out-of-bounds heap write in HotSpot's AVX-512 Base64 decode intrinsic,

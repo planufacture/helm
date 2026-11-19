@@ -224,8 +224,8 @@ spec:
               value: "{{ $.Release.Namespace }}:spring:session"
             {{- end }}
             {{- end }}
-            {{- with .env }}
-            {{- toYaml . | nindent 12 }}
+            {{- with (include "planufacture.componentEnv" (dict "root" $ "env" .env)) }}
+            {{- . | nindent 12 }}
           {{- end }}
           startupProbe:
             {{- if .startupProbe }}

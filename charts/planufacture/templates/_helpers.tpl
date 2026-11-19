@@ -166,27 +166,61 @@ rendering a duplicate name.
 {{- end }}
 
 {{/*
-The _JAVA_OPTIONS env entry carrying .Values.jvmSecurityOptions (a string or
-a list of flags), or nothing when that is empty. Takes
-(dict "root" $ "env" <component env list> "component" <name>).
+.Values.jvmSecurityOptions (a string or a list of flags) as one trimmed
+string; empty when unset.
+*/}}
+{{- define "planufacture.jvmSecurityOptions" -}}
+{{- $opts := .Values.jvmSecurityOptions -}}
+{{- if kindIs "slice" $opts }}{{ $opts = join " " $opts }}{{ end -}}
+{{- trim (toString (default "" $opts)) -}}
+{{- end }}
+
+{{/*
+The _JAVA_OPTIONS env entry carrying jvmSecurityOptions, or nothing when that
+is empty. Takes (dict "root" $ "env" <component env list> "component" <name>).
 
 _JAVA_OPTIONS rather than JAVA_TOOL_OPTIONS: HotSpot reads it itself, whatever
 the image's entrypoint, and applies it after JAVA_TOOL_OPTIONS and the command
 line. So an environment's own JAVA_TOOL_OPTIONS can't drop these flags and a
-later flag can't switch them back. An env that sets _JAVA_OPTIONS itself would
-replace them silently, so the render fails instead.
+later flag can't switch them back.
+
+When the component's `env` sets _JAVA_OPTIONS itself, the security flags are
+appended to its value (so they still come last and win), and
+planufacture.componentEnv leaves that entry out of the rendered env. A
+valueFrom entry can't be merged, so the render fails for that one case.
 */}}
 {{- define "planufacture.jvmSecurityEnv" -}}
-{{- $opts := .root.Values.jvmSecurityOptions -}}
-{{- if kindIs "slice" $opts }}{{ $opts = join " " $opts }}{{ end -}}
-{{- $opts = trim (toString (default "" $opts)) -}}
+{{- $opts := include "planufacture.jvmSecurityOptions" .root -}}
 {{- if $opts -}}
-{{- if include "planufacture.envHasName" (dict "env" .env "name" "_JAVA_OPTIONS") -}}
-{{- fail (printf "%s: env sets _JAVA_OPTIONS, which would replace jvmSecurityOptions (%s). Add those flags to it and set jvmSecurityOptions: \"\" only if every component carries them." .component $opts) -}}
+{{- $value := $opts -}}
+{{- range (default (list) .env) -}}
+{{- if and (kindIs "map" .) (eq (toString .name) "_JAVA_OPTIONS") -}}
+{{- if hasKey . "valueFrom" -}}
+{{- fail (printf "%s: env sets _JAVA_OPTIONS from valueFrom, so jvmSecurityOptions (%s) can't be appended to it. Give it a plain value." $.component $opts) -}}
+{{- end -}}
+{{- $value = trim (printf "%s %s" (toString (default "" .value)) $opts) -}}
+{{- end -}}
 {{- end -}}
 - name: _JAVA_OPTIONS
-  value: {{ $opts | quote }}
+  value: {{ $value | quote }}
 {{- end -}}
+{{- end }}
+
+{{/*
+A component's own `env` list as YAML, minus any _JAVA_OPTIONS entry while
+jvmSecurityOptions is set (planufacture.jvmSecurityEnv renders the merged
+entry instead). Takes (dict "root" $ "env" <list>); empty when nothing is left.
+*/}}
+{{- define "planufacture.componentEnv" -}}
+{{- $env := default (list) .env -}}
+{{- if include "planufacture.jvmSecurityOptions" .root -}}
+{{- $kept := list -}}
+{{- range $env -}}
+{{- if not (and (kindIs "map" .) (eq (toString .name) "_JAVA_OPTIONS")) }}{{ $kept = append $kept . }}{{ end -}}
+{{- end -}}
+{{- $env = $kept -}}
+{{- end -}}
+{{- with $env }}{{ toYaml . }}{{ end -}}
 {{- end }}
 
 {{/*
