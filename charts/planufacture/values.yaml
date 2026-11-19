@@ -59,9 +59,9 @@ microServices:
         path: /
         port: http
   # Stock-movement UI for customers without Diomac (planufacture/ui-connector).
-  # The gateway routes /connector/** to it. Off until an environment needs it:
-  # enable it per environment, together with the gateway route in that
-  # environment's config.
+  # The gateway routes /connector and /connector/** to it. Off until an
+  # environment needs it: enable it per environment, together with the gateway
+  # route in that environment's config.
   uiConnector:
     enabled: false
     image:
