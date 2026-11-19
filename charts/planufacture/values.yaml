@@ -93,6 +93,12 @@ microServices:
       limits:
         cpu: '1'
         memory: 1Gi
+    # The JVM picks G1 itself only with at least 2 processors and 1792Mi.
+    # Java counts processors from the CPU limit, so the domain sees one and
+    # would get the Serial collector, whose stop-the-world pauses also stall
+    # the liveness endpoint. UseG1GC sets the collector explicitly. Off-heap
+    # use is ~300Mi, so keep MaxRAMPercentage at 50 or below.
+    javaToolOptions: "-XX:+UseG1GC -XX:MaxRAMPercentage=50.0"
   gateway:
     replicaCount: 2
     redis: true
