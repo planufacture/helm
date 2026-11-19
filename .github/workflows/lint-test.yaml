@@ -162,6 +162,41 @@ jobs:
           expect_fail 'apiKey is not supported' --set chat.anthropic.apiKey=ci-placeholder
           exit $status
 
+      # ui-connector is off by default, so ct lint never renders it. Render it
+      # on and check its image, Service and probes (served under basePath
+      # /connector, so `/` would be a 404), that it gets no ServiceMonitor
+      # (no /actuator/prometheus), and that off renders nothing.
+      - name: Check ui-connector renders
+        run: |
+          render() {
+            helm template ci charts/planufacture \
+              --set application.environment=ci --set configuration=ci --set diomac.key=ci \
+              --api-versions monitoring.coreos.com/v1/ServiceMonitor "$@"
+          }
+          status=0
+          off=$(render)
+          grep -qF 'ui-connector' <<<"$off" && { echo "::error::ui-connector rendered while disabled"; status=1; }
+          out=$(render --set microServices.uiConnector.enabled=true)
+          # ea + [..] | .[0]: plain yq prints a separator for every unmatched document
+          dep=$(yq ea '[select(.kind=="Deployment" and .metadata.name=="ci-planufacture-ui-connector")] | .[0] // ""' <<<"$out")
+          [ -n "$dep" ] || { echo "::error::no ui-connector Deployment"; status=1; }
+          # The tag comes from values.yaml (update-helm-chart.yaml bumps it), never
+          # appVersion, which is ui's version
+          tag=$(yq '.microServices.uiConnector.image.tag' charts/planufacture/values.yaml)
+          image=$(yq '.spec.template.spec.containers[0].image' <<<"$dep")
+          [ "$image" = "ghcr.io/planufacture/ui-connector:$tag" ] \
+            || { echo "::error::ui-connector image is '$image', want tag '$tag' from values.yaml"; status=1; }
+          for probe in startupProbe livenessProbe readinessProbe; do
+            path=$(yq ".spec.template.spec.containers[0].$probe.httpGet.path" <<<"$dep")
+            [ "$path" = "/connector/api/health" ] || { echo "::error::ui-connector $probe path is '$path'"; status=1; }
+          done
+          svc=$(yq ea '[select(.kind=="Service" and .metadata.name=="planufacture-ui-connector")]
+            | .[0].spec.ports[0] | [.port, .targetPort] | join("/")' <<<"$out")
+          [ "$svc" = "3000/http" ] || { echo "::error::ui-connector Service port is '$svc'"; status=1; }
+          sm=$(yq 'select(.kind=="ServiceMonitor") | .metadata.name' <<<"$out")
+          grep -qF 'ui-connector' <<<"$sm" && { echo "::error::ui-connector got a ServiceMonitor"; status=1; }
+          exit $status
+
       # Axon Server's volume classes. CI has no cluster, so lookup finds no
       # StatefulSet and this is the new-StatefulSet path. Keeping an existing
       # StatefulSet's (immutable) volumeClaimTemplates needs a cluster to
