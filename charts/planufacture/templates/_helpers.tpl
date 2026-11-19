@@ -156,6 +156,19 @@ holds a variable of that name. Used so a chart-provided variable such as
 JAVA_TOOL_OPTIONS steps aside for an env's own `env` entry instead of
 rendering a duplicate name.
 */}}
+{{/*
+JAVA_TOOL_OPTIONS for a JVM component: the global jvmSecurityOptions followed by
+the component's own javaToolOptions (dict "root" $ "opts" <string>). Empty when
+both are empty. The security flags come first and are not dropped when an
+environment overrides a component's javaToolOptions.
+*/}}
+{{- define "planufacture.javaToolOptions" -}}
+{{- $parts := list -}}
+{{- with .root.Values.jvmSecurityOptions }}{{- $parts = append $parts (trim .) -}}{{- end -}}
+{{- with .opts }}{{- $parts = append $parts (trim .) -}}{{- end -}}
+{{- join " " $parts -}}
+{{- end }}
+
 {{- define "planufacture.envHasName" -}}
 {{- $name := .name -}}
 {{- if kindIs "slice" .env -}}

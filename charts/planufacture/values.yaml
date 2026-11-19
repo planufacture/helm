@@ -28,6 +28,20 @@ imageRegistry: ghcr.io
 # so it follows an environment's resources override. Rendered as the
 # JAVA_TOOL_OPTIONS env var unless the component's `env` already sets it;
 # set to "" to omit.
+#
+# jvmSecurityOptions: JVM flags put at the front of every JVM component's
+# JAVA_TOOL_OPTIONS (all microServices except ui, the diomac CronJob and Axon
+# Server), before its own javaToolOptions, so an environment that overrides
+# javaToolOptions keeps them. A component whose `env` sets JAVA_TOOL_OPTIONS
+# itself gets neither, so put such flags there too.
+#
+# -XX:-UseBASE64Intrinsics mitigates CVE-2026-114938 ("Java4Shell"): an
+# out-of-bounds heap write in HotSpot's AVX-512 Base64 decode intrinsic,
+# reachable with unauthenticated input (e.g. a JWT) on our m7a (AMD Zen 4)
+# nodes. Fixed in Java 25.0.5.1 / 21.0.13.1 / 17.0.21.1. Remove once every
+# image, Axon Server's included, runs a fixed JDK. Costs only Base64 decode
+# speed.
+jvmSecurityOptions: "-XX:-UseBASE64Intrinsics"
 microServices:
   ui:
     image:
@@ -224,6 +238,8 @@ axonserver:
   image:
     repository: 503561419401.dkr.ecr.eu-west-1.amazonaws.com/docker-hub/axoniq/axonserver
     tag: 2025.2.1-nonroot
+  # Appended after jvmSecurityOptions in JAVA_TOOL_OPTIONS; "" adds nothing.
+  javaToolOptions: ""
   storage:
     events: 5Gi
     logs: 1Gi
