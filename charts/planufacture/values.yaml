@@ -9,7 +9,8 @@ application: {}
 #   imageRegistry: 503561419401.dkr.ecr.eu-west-1.amazonaws.com/ghcr
 imageRegistry: ghcr.io
 # Default resources per component. Memory request == limit (a pod is never
-# scheduled onto memory it may later need); CPU is a request only, no limit.
+# scheduled onto memory it may later need); CPU is a request only, except for
+# the domain and Axon Server, which also have a CPU limit.
 # Sized from the 7-day peak working set across all environments plus headroom.
 #
 # Helm deep-merges an environment's `resources` block onto these defaults, so
@@ -86,7 +87,7 @@ microServices:
       port: 9500
     metrics:
       enabled: true
-    # The only component with a CPU limit: it caps one tenant's bursts on a
+    # The only microservice with a CPU limit: it caps one tenant's bursts on a
     # shared node. Java counts processors from the limit, so it also sets how
     # many GC and worker threads the JVM runs. 2 lets GC and request threads
     # run side by side; at 1, heavy queries and GC queue behind each other
