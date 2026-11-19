@@ -86,18 +86,23 @@ microServices:
       port: 9500
     metrics:
       enabled: true
+    # The only component with a CPU limit: it caps one tenant's bursts on a
+    # shared node. Java counts processors from the limit, so it also sets how
+    # many GC and worker threads the JVM runs. 2 lets GC and request threads
+    # run side by side; at 1, heavy queries and GC queue behind each other
+    # and the liveness probe times out.
     resources:
       requests:
         cpu: 200m
         memory: 1Gi
       limits:
-        cpu: '1'
+        cpu: '2'
         memory: 1Gi
-    # The JVM picks G1 itself only with at least 2 processors and 1792Mi.
-    # Java counts processors from the CPU limit, so the domain sees one and
-    # would get the Serial collector, whose stop-the-world pauses also stall
-    # the liveness endpoint. UseG1GC sets the collector explicitly. Off-heap
-    # use is ~300Mi, so keep MaxRAMPercentage at 50 or below.
+    # The JVM picks G1 itself only with at least 2 processors and 1792Mi, so
+    # with the default 1Gi it would get the Serial collector, whose
+    # stop-the-world pauses also stall the liveness endpoint. UseG1GC sets the
+    # collector explicitly. Off-heap use is ~300Mi, so keep MaxRAMPercentage
+    # at 50 or below.
     javaToolOptions: "-XX:+UseG1GC -XX:MaxRAMPercentage=50.0"
   gateway:
     replicaCount: 2
