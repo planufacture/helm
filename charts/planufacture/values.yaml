@@ -148,7 +148,7 @@ microServices:
     replicaCount: 2
     redis: true
     image:
-      tag: 0.0.28
+      tag: 0.0.29
     service:
       port: 9501
     metrics:
