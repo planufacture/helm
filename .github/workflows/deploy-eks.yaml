@@ -32,6 +32,18 @@ jobs:
       CHART_VERSION: ${{ github.event.inputs.chart_version }}
 
     steps:
+      # helm --version takes semver constraints, so "0.1" or ">=0.1.0" would
+      # quietly install the newest match. Only an exact x.y.z is accepted; a
+      # version that was never released fails at chart lookup in helm upgrade,
+      # before anything is applied to the cluster.
+      - name: Validate chart version
+        if: ${{ env.CHART_VERSION != '' }}
+        run: |
+          if ! printf '%s' "${CHART_VERSION}" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error title=Invalid chart version::'${CHART_VERSION}' is not an exact version like 0.1.1247 (check for spaces)"
+            exit 1
+          fi
+
       - name: Show deployment target
         run: |
           echo "::notice title=Deploy target::${ENVIRONMENT} (namespace ${NAMESPACE}, release ${NAME}, cluster ${CLUSTER_NAME})"
@@ -69,16 +81,6 @@ jobs:
         run: |
           helm repo add planufacture https://charts.planufacture.tech
           helm repo update
-
-      # Fail before touching the cluster if the requested version was never
-      # released, rather than part-way through the upgrade.
-      - name: Check chart version exists
-        if: ${{ env.CHART_VERSION != '' }}
-        run: |
-          if ! helm show chart planufacture/planufacture --version "${CHART_VERSION}" > /dev/null; then
-            echo "::error title=Unknown chart version::planufacture/planufacture ${CHART_VERSION} is not in the chart repo"
-            exit 1
-          fi
 
       - name: Create values file from secret
         run: |
@@ -146,6 +148,7 @@ jobs:
             echo "| Cluster | \`${CLUSTER_NAME}\` |"
             echo "| Namespace | \`${NAMESPACE}\` |"
             echo "| Release | \`${NAME}\` |"
+            echo "| Requested chart | \`${CHART_VERSION:-latest}\` |"
             echo "| Chart | \`${CHART}\` |"
             echo "| App version | \`${APP_VERSION}\` |"
             echo "| Helm revision | \`${REVISION}\` |"
