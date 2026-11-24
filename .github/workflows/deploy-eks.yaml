@@ -1,5 +1,5 @@
 name: Deploy to EKS
-run-name: Deploy to EKS - ${{ github.event.inputs.environment || 'dev' }}
+run-name: Deploy to EKS - ${{ github.event.inputs.environment || 'dev' }}${{ github.event.inputs.chart_version && format(' @ {0}', github.event.inputs.chart_version) || '' }}
 
 on:
   workflow_run:
@@ -12,6 +12,10 @@ on:
         description: 'Environment to deploy to'
         type: environment
         required: true
+      chart_version:
+        description: 'Chart version to deploy, e.g. 0.1.1247 (blank = latest)'
+        type: string
+        required: false
 
 permissions:
   id-token: write
@@ -24,6 +28,8 @@ jobs:
     environment: ${{ github.event.inputs.environment || 'dev' }}
     env:
       ENVIRONMENT: ${{ github.event.inputs.environment || 'dev' }}
+      # Blank (including every automatic deploy) installs the latest chart.
+      CHART_VERSION: ${{ github.event.inputs.chart_version }}
 
     steps:
       - name: Show deployment target
@@ -64,6 +70,16 @@ jobs:
           helm repo add planufacture https://charts.planufacture.tech
           helm repo update
 
+      # Fail before touching the cluster if the requested version was never
+      # released, rather than part-way through the upgrade.
+      - name: Check chart version exists
+        if: ${{ env.CHART_VERSION != '' }}
+        run: |
+          if ! helm show chart planufacture/planufacture --version "${CHART_VERSION}" > /dev/null; then
+            echo "::error title=Unknown chart version::planufacture/planufacture ${CHART_VERSION} is not in the chart repo"
+            exit 1
+          fi
+
       - name: Create values file from secret
         run: |
           echo "${{ secrets.HELM_VALUES }}" > values.yaml
@@ -81,8 +97,9 @@ jobs:
 
       - name: Deploy to Kubernetes
         run: |
-          echo "Deploying planufacture/planufacture as ${NAME} to ${ENVIRONMENT} (namespace ${NAMESPACE})"
+          echo "Deploying planufacture/planufacture ${CHART_VERSION:-(latest)} as ${NAME} to ${ENVIRONMENT} (namespace ${NAMESPACE})"
           helm upgrade --install ${NAME} planufacture/planufacture \
+            ${CHART_VERSION:+--version "${CHART_VERSION}"} \
             --namespace "${NAMESPACE}" \
             -f values.yaml \
             --set redis.auth.password="${REDIS_PASSWORD}" \
