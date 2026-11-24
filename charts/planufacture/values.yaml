@@ -256,21 +256,21 @@ microServices:
       existingSecretKey: solver-connection-string
     service:
       port: 9520
-    # A solve keeps at most ~200Mi live on the heap, but it allocates fast and
-    # fills the old generation with short-lived objects long before a full GC.
-    # Below 1792Mi the JVM uses the Serial collector, which never returns
-    # committed heap, so the container holds the heap's high-water mark plus
-    # ~150Mi metaspace and code cache and ~150-230Mi native memory. 40% (410Mi
-    # at 1Gi) keeps that total under the limit; at 75% it reached the limit
-    # before the first full GC. Raise memory, not this percentage, for a larger
-    # problem.
+    # A solve keeps at most ~200Mi live on the heap, but it allocates fast.
+    # Below 1792Mi the JVM picks the Serial collector, whose small young
+    # generation promotes short-lived objects until the old generation fills;
+    # the container then reaches its limit before the first full GC. UseG1GC
+    # sets the collector explicitly: G1 sizes the young generation to the
+    # allocation rate and cleans the old generation concurrently, well before
+    # the heap is full. Off-heap use is ~150Mi metaspace and code cache plus
+    # ~150-250Mi native, so keep MaxRAMPercentage at 50 or below.
     resources:
       requests:
         cpu: 100m
         memory: 1Gi
       limits:
         memory: 1Gi
-    javaToolOptions: "-XX:MaxRAMPercentage=40.0"
+    javaToolOptions: "-XX:+UseG1GC -XX:MaxRAMPercentage=50.0"
 busybox:
   image:
     repository: 503561419401.dkr.ecr.eu-west-1.amazonaws.com/docker-hub/library/busybox
