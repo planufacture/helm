@@ -1,5 +1,5 @@
 name: Deploy to EKS
-run-name: Deploy to EKS - ${{ github.event.inputs.environment || 'dev' }}
+run-name: Deploy to EKS - ${{ github.event.inputs.environment || 'dev' }}${{ github.event.inputs.chart_version && format(' @ {0}', github.event.inputs.chart_version) || '' }}
 
 on:
   workflow_run:
@@ -12,6 +12,10 @@ on:
         description: 'Environment to deploy to'
         type: environment
         required: true
+      chart_version:
+        description: 'Chart version to deploy, e.g. 0.1.1251 (blank = latest)'
+        type: string
+        required: false
 
 permissions:
   id-token: write
@@ -24,8 +28,23 @@ jobs:
     environment: ${{ github.event.inputs.environment || 'dev' }}
     env:
       ENVIRONMENT: ${{ github.event.inputs.environment || 'dev' }}
+      # Blank (including every automatic deploy) installs the latest chart.
+      CHART_VERSION: ${{ github.event.inputs.chart_version }}
 
     steps:
+      # helm --version takes semver constraints, so "0.1" or ">=0.1.0" would
+      # quietly install the newest match. Only an exact x.y.z is accepted; a
+      # version that was never released fails at chart lookup in helm upgrade,
+      # before anything is applied to the cluster.
+      - name: Validate chart version
+        if: ${{ env.CHART_VERSION != '' }}
+        run: |
+          # [[ =~ ]] matches the whole string; grep would pass "0.1.1247\nx".
+          if ! [[ "${CHART_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error title=Invalid chart version::'${CHART_VERSION}' is not an exact version like 0.1.1251 (check for spaces)"
+            exit 1
+          fi
+
       - name: Show deployment target
         run: |
           echo "::notice title=Deploy target::${ENVIRONMENT} (namespace ${NAMESPACE}, release ${NAME}, cluster ${CLUSTER_NAME})"
@@ -81,8 +100,9 @@ jobs:
 
       - name: Deploy to Kubernetes
         run: |
-          echo "Deploying planufacture/planufacture as ${NAME} to ${ENVIRONMENT} (namespace ${NAMESPACE})"
+          echo "Deploying planufacture/planufacture ${CHART_VERSION:-(latest)} as ${NAME} to ${ENVIRONMENT} (namespace ${NAMESPACE})"
           helm upgrade --install ${NAME} planufacture/planufacture \
+            ${CHART_VERSION:+--version "${CHART_VERSION}"} \
             --namespace "${NAMESPACE}" \
             -f values.yaml \
             --set redis.auth.password="${REDIS_PASSWORD}" \
@@ -129,6 +149,7 @@ jobs:
             echo "| Cluster | \`${CLUSTER_NAME}\` |"
             echo "| Namespace | \`${NAMESPACE}\` |"
             echo "| Release | \`${NAME}\` |"
+            echo "| Requested chart | \`${CHART_VERSION:-latest}\` |"
             echo "| Chart | \`${CHART}\` |"
             echo "| App version | \`${APP_VERSION}\` |"
             echo "| Helm revision | \`${REVISION}\` |"
