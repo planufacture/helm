@@ -256,16 +256,21 @@ microServices:
       existingSecretKey: solver-connection-string
     service:
       port: 9520
-    # Idle peak ~454Mi, but no solve ran in the metrics window (max CPU 0.04
-    # cores), so solving memory is unmeasured. Timefold keeps the working
-    # solution on the heap, so this is sized above idle: heap 768Mi.
+    # A solve keeps at most ~200Mi live on the heap, but it allocates fast and
+    # fills the old generation with short-lived objects long before a full GC.
+    # Below 1792Mi the JVM uses the Serial collector, which never returns
+    # committed heap, so the container holds the heap's high-water mark plus
+    # ~150Mi metaspace and code cache and ~150-230Mi native memory. 40% (410Mi
+    # at 1Gi) keeps that total under the limit; at 75% it reached the limit
+    # before the first full GC. Raise memory, not this percentage, for a larger
+    # problem.
     resources:
       requests:
         cpu: 100m
         memory: 1Gi
       limits:
         memory: 1Gi
-    javaToolOptions: "-XX:MaxRAMPercentage=75.0"
+    javaToolOptions: "-XX:MaxRAMPercentage=40.0"
 busybox:
   image:
     repository: 503561419401.dkr.ecr.eu-west-1.amazonaws.com/docker-hub/library/busybox
