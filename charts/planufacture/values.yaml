@@ -70,7 +70,7 @@ microServices:
       # Set by update-helm-chart.yaml on each ui-connector release. Without a
       # tag, the image falls back to the chart's appVersion, which is the ui's
       # version, and no ui-connector image has that tag.
-      tag: 0.1.1
+      tag: 0.1.2
     # Node 26 (Next.js standalone). Unmeasured: ui peaks at ~64Mi, so this
     # starts at twice ui's size. Lower it once there are metrics.
     resources:
